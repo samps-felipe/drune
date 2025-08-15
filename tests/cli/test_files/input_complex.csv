@@ -1,0 +1,5 @@
+id_cliente,code,amount,date,desc,flag
+1,A100,10.5,2025-08-01,Compra,True
+2,B200,20.0,2025-08-02,Venda,False
+3,C300,15.0,2025-08-03,Compra,True
+4,D400,30.0,2025-08-04,Devolucao,False

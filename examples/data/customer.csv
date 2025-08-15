@@ -1,0 +1,6 @@
+customer_id,first_name,last_name,email,document
+101,  John  ,Doe,john.doe@example.com,11122233301
+102,Jane,Smith,jane.smith@example.com,22233344402
+103,Peter, Jones ,peter.jones@example.com,33344455503
+,No ID,Person,noid@example.com,44455566604
+105,Bad Email,User,bademail,55566677705

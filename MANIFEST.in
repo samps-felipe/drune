@@ -1,0 +1,3 @@
+# Include all Python files and README in the package
+include README.md
+recursive-include src *.py

@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.env
+.env
+.venv/
+venv/
+ENV/
+.envrc
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Tests
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# Build
+build/
+*/build/
+dist/
+*.egg-info/
+
+# Temp Files
+*.tmp
+*.bak
+*.swp
+/scratch
+
+# Databases
+*.db
+*.sqlite3
+
+# OS Files
+.DS_Store
+Thumbs.db

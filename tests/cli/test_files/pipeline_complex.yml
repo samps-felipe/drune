@@ -1,0 +1,52 @@
+pipeline_name: test_pipeline_complex
+engine: pandas
+pipeline_type: silver
+source:
+  format: csv
+  path: tests/cli/test_files/input_complex.csv
+sink:
+  format: csv
+  mode: overwrite
+  path: tests/cli/test_files/output_complex.csv
+columns:
+  - name: id_cliente
+    type: int
+    pk: true
+  - name: code
+    type: string
+    pk: true
+    rename: codigo
+    validation_rules:
+      - rule: not_null
+  - name: amount
+    type: float
+    rename: valor
+    validation_rules:
+      - rule: not_null
+      - rule: greater_than
+        value: 0
+  - name: date
+    type: string
+    rename: data_compra
+    format: '%Y-%m-%d'
+  - name: desc
+    type: string
+    rename: descricao
+    optional: true
+  - name: flag
+    type: bool
+    rename: ativo
+steps:
+  - name: read
+    type: read
+    params: {}
+  - name: transform
+    type: transform
+    params:
+      expr: "valor = valor * 2"
+  - name: validate
+    type: validate
+    params: {}
+  - name: write
+    type: write
+    params: {}

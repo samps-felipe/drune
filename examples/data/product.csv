@@ -1,0 +1,7 @@
+product_id,product_name,category,price
+10,Laptop,Eletronicos,1200.50
+20,Mouse,Perifericos,25.00
+10,Laptop,Eletronicos,1150.00
+30,Keyboard,Perifericos,75.00
+40,Monitor,Eletronicos,300.00
+50,Printer,Perifericos,150.00

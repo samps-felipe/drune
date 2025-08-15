@@ -1,0 +1,22 @@
+pipeline_name: test_pipeline_missing_col
+engine: pandas
+pipeline_type: silver
+source:
+  format: csv
+  path: tests/cli/test_files/input_missing_col.csv
+sink:
+  format: csv
+  mode: overwrite
+  path: tests/cli/test_files/output_missing_col.csv
+columns:
+  - name: col1
+    type: int
+  - name: col2
+    type: string
+steps:
+  - name: read
+    type: read
+    params: {}
+  - name: write
+    type: write
+    params: {}

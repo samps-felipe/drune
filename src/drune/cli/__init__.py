@@ -1,0 +1,1 @@
+from .main import cli as drune_cli

@@ -1,0 +1,27 @@
+pipeline_name: test_pipeline_nulls
+engine: pandas
+pipeline_type: silver
+source:
+  format: csv
+  path: tests/cli/test_files/input_nulls.csv
+sink:
+  format: csv
+  mode: overwrite
+  path: tests/cli/test_files/output_nulls.csv
+columns:
+  - name: col1
+    type: int
+    validation_rules:
+      - rule: not_null
+  - name: col2
+    type: string
+steps:
+  - name: read
+    type: read
+    params: {}
+  - name: validate
+    type: validator
+    params: {}
+  - name: write
+    type: write
+    params: {}

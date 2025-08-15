@@ -1,0 +1,28 @@
+engine: pandas
+pipeline_type: silver
+pipeline_name: exemplo_pipeline
+description: Pipeline de exemplo para teste
+dependencies: []
+defaults:
+  date_format: "yyyy-MM-dd"
+  column_rename_pattern: snake_case
+source:
+  format: csv
+  path: "dados/exemplo.csv"
+sink:
+  format: csv
+  path: "dados/saida/teste.csv"
+  mode: overwrite
+columns:
+  - name: codigo
+    rename: cd
+    type: int
+    pk: true
+    validate:
+      - rule: "isin:[1,2]"
+        on_fail: "drop"
+  - name: nome
+    type: int
+    optional: false
+table_validations: []
+foreign_keys: []

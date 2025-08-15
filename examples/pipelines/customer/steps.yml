@@ -1,0 +1,9 @@
+steps:
+  - name: read_data
+    type: read
+  - name: transform_data
+    type: transform
+  - name: validate_data
+    type: validate
+  - name: write_data
+    type: write

@@ -1,0 +1,4 @@
+default:
+  config: drune.yml
+  engine: pandas
+  pipelines: pipelines/

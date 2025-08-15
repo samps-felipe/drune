@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drune"
+version = "0.1.0"
+description = "A declarative framework for data pipelines."
+readme = "README.md"
+authors = [
+	{ name = "Felipe Sampaio"}
+]
+requires-python = ">=3.8"
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"License :: OSI Approved :: MIT License",
+	"Operating System :: OS Independent",
+	"Development Status :: 4 - Beta",
+	"Intended Audience :: Developers",
+	"Topic :: Software Development :: Libraries"
+]
+dependencies = [
+	"pyyaml",
+	"pydantic",
+	"pydantic-yaml",
+	"click"
+]
+[project.optional-dependencies]
+dev = [
+		"pytest",
+		"pytest-cov",
+		"black",
+		"isort",
+		"flake8",
+		"mypy"
+	]
+spark = [
+		"pyspark>=3.0.0"
+	]
+duckdb = [
+		"duckdb>=0.5.0"
+	]
+pandas = [
+		"pandas>=1.0.0"
+	]
+polars = [
+		"polars>=0.10.0"
+	]
+all = [
+		"drune[spark]",
+		"drune[duckdb]",
+		"drune[pandas]",
+		"drune[polars]",
+	]
+
+
+[project.scripts]
+drune = "drune.cli.main:cli"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

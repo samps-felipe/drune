@@ -1,0 +1,28 @@
+pipeline_name: test_pipeline_transform
+engine: pandas
+pipeline_type: silver
+source:
+  format: csv
+  path: tests/cli/test_files/input_transform.csv
+sink:
+  format: csv
+  mode: overwrite
+  path: tests/cli/test_files/output_transform.csv
+columns:
+  - name: col1
+    type: int
+  - name: col2
+    type: string
+  - name: col3
+    type: int
+steps:
+  - name: read
+    type: read
+    params: {}
+  - name: transform
+    type: transformer
+    params:
+      expr: "col3 = col3 + 100"
+  - name: write
+    type: write
+    params: {}

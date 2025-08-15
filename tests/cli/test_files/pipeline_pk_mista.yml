@@ -1,0 +1,42 @@
+pipeline_name: test_pipeline_pk_mista
+engine: pandas
+pipeline_type: silver
+source:
+  format: csv
+  path: tests/cli/test_files/input_pk_mista.csv
+sink:
+  format: csv
+  mode: overwrite
+  path: tests/cli/test_files/output_pk_mista.csv
+columns:
+  - name: id_cliente
+    type: int
+    pk: true
+  - name: code
+    type: string
+    pk: true
+    rename: codigo
+  - name: amount
+    type: float
+    rename: valor
+  - name: date
+    type: string
+    rename: data_compra
+    format: '%Y-%m-%d'
+  - name: desc
+    type: string
+    rename: descricao
+    optional: true
+  - name: flag
+    type: bool
+    rename: ativo
+steps:
+  - name: read
+    type: read
+    params: {}
+  - name: validate
+    type: validator
+    params: {}
+  - name: write
+    type: write
+    params: {}
