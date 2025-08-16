@@ -1,28 +1,55 @@
 engine: pandas
-pipeline_type: silver
-pipeline_name: exemplo_pipeline
+pipeline_name: customer_pipeline
 description: Pipeline de exemplo para teste
 dependencies: []
+
 defaults:
   date_format: "yyyy-MM-dd"
   column_rename_pattern: snake_case
-source:
-  format: csv
-  path: "dados/exemplo.csv"
+
+sources:
+  customer_data:
+    type: file
+    format: csv
+    path: "C:\\Users\\felipe.sampaio_visag\\Documents\\git\\drune\\examples\\data\\customer.csv"
+
 sink:
   format: csv
   path: "dados/saida/teste.csv"
   mode: overwrite
+
 columns:
-  - name: codigo
+  - name: customer_id
     rename: cd
     type: int
     pk: true
     validate:
-      - rule: "isin:[1,2]"
+      - rule: "isin:[101,102]"
+        on_fail: "warn"
+  - name: first_name
+    type: str
+  - name: last_name
+    type: str
+    optional: true
+  - name: email
+    type: str
+    validate:
+      - rule: "pattern:^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
         on_fail: "drop"
-  - name: nome
-    type: int
-    optional: false
+  - name: document
+    rename: doc
+    type: str
+
+
 table_validations: []
 foreign_keys: []
+
+steps:
+  - name: read_data
+    type: read
+  - name: transform_data
+    type: transform
+  - name: validate_data
+    type: validate
+  - name: write_data
+    type: write

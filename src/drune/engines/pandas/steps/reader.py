@@ -1,16 +1,28 @@
+from typing import Dict
 import pandas as pd
-from ....core.step import BaseStep, register_step
-from ....utils.exceptions import ConfigurationError
+from drune.core.step import BaseStep, register_step
+from drune.utils.exceptions import ConfigurationError
 
 @register_step('read')
 class ReadStep(BaseStep):
     """Step responsible for reading data from a source using pandas."""
-    def execute(self, df: pd.DataFrame = None, **kwargs) -> pd.DataFrame:
+    def execute(self, sources: Dict[str, pd.DataFrame] = None, **kwargs) -> Dict[str, pd.DataFrame]:
         self.logger.info("--- Step: Read (Pandas) ---")
 
-        source_config = self.config.source
-        if not source_config:
-            raise ConfigurationError("'source' configuration not found.")
+        sources_config = self.config.sources
+        sources = {}
+
+        if not sources_config:
+            self.logger.error("No source configuration found.")
+            raise ConfigurationError("Source configuration is missing.")
+        
+        for name, source_config in sources_config.items():
+            sources[name] = self._read_source(source_config)
+
+        return sources
+        
+    def _read_source(self, source_config) -> pd.DataFrame:
+        """Reads data from the specified source configuration."""
 
         if source_config.format == 'csv':
             return pd.read_csv(source_config.path, **source_config.options)

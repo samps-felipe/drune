@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Type
-from ..models.pydantic_models import PipelineConfig
+from drune.models import PipelineModel
 
 # This will hold the mapping from engine name to engine class
 _engine_registry: Dict[str, Type] = {}
@@ -23,7 +23,7 @@ def register_engine(name: str, cls: Type = None):
 
 def get_engine(name: str) -> Type:
     """Retrieves a engine from the registry."""
-    return _engine_registry.get(name)
+    return _engine_registry[name]
 
 class BaseEngine(ABC):
     """
@@ -31,16 +31,21 @@ class BaseEngine(ABC):
     Qualquer novo engine (ex: PandasEngine) deve implementar estes métodos.
     """
     @abstractmethod
-    def __init__(self, config: PipelineConfig):
+    def __init__(self, config: PipelineModel):
         """Initializes the engine with the given pipeline configuration."""
-        pass
-    
-    @abstractmethod
-    def create_table(self):
-        """Creates the table schema at the destination."""
         pass
 
     @abstractmethod
-    def update_table(self):
-        """Applies schema or metadata changes to an existing table."""
+    def run(self):
+        """Executes the pipeline by dynamically running the steps defined in the config."""
         pass
+    
+    # @abstractmethod
+    # def create_table(self):
+    #     """Creates the table schema at the destination."""
+    #     pass
+
+    # @abstractmethod
+    # def update_table(self):
+    #     """Applies schema or metadata changes to an existing table."""
+    #     pass

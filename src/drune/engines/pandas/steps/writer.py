@@ -1,4 +1,5 @@
 import os
+from typing import Dict
 import pandas as pd
 from ....core.step import BaseStep, register_step
 from ....utils.exceptions import ConfigurationError
@@ -6,8 +7,10 @@ from ....utils.exceptions import ConfigurationError
 @register_step('write')
 class WriteStep(BaseStep):
     """Step responsible for writing a pandas DataFrame to a destination."""
-    def execute(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def execute(self, sources: Dict[str, pd.DataFrame] = None, **kwargs) -> Dict[str, pd.DataFrame]:
         self.logger.info("--- Step: Write (Pandas) ---")
+
+        df = sources.get('_output')
 
         sink_config = self.config.sink
         

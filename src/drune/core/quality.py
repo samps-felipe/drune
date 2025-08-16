@@ -19,7 +19,7 @@ def register_rule(name: str, cls: Type = None):
         return inner_cls
     return decorator
 
-def get_validationrule(name: str) -> Type:
+def get_validation_rule(name: str) -> Type:
     """Retrieves a validation rule class from the registry."""
     return _validation_rule_registry.get(name)
 

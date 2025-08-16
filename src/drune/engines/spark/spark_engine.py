@@ -1,18 +1,21 @@
-from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.types import StructType, StructField
-from pyspark.sql.functions import col, lit, current_timestamp, expr, sha2, concat_ws
-import pyspark.sql.functions as F
-from pyspark.sql.utils import AnalysisException
-from delta.tables import DeltaTable
-from ...core.engine import BaseEngine, register_engine
-from ...core.step import get_step
-from ...models.pydantic_models import PipelineConfig
 import re
-from ...utils.logger import logger
+from typing import Type
+from drune.core.engine import BaseEngine, register_engine
+from drune.core.step import get_step
+from drune.models import PipelineModel
+from drune.utils.logger import get_logger
 
 @register_engine('spark')
 class SparkEngine(BaseEngine):
-    def __init__(self, config: PipelineConfig):
+
+    def __init__(self, config: PipelineModel):
+        from pyspark.sql import SparkSession, DataFrame
+        from pyspark.sql.types import StructType, StructField
+        from pyspark.sql.functions import col, lit, current_timestamp, expr, sha2, concat_ws
+        import pyspark.sql.functions as F
+        from pyspark.sql.utils import AnalysisException
+        from delta.tables import DeltaTable
+
         self.spark = SparkSession.builder.appName(config.pipeline_name).getOrCreate()
         self.config = config
 
@@ -28,7 +31,7 @@ class SparkEngine(BaseEngine):
             df = step_instance.execute(df, **step_config.params)
         return df
     
-    def create_table(self, config: PipelineConfig):
+    def create_table(self, config: PipelineModel):
         """Creates a table in Unity Catalog with unified logic for Silver and Gold."""
         target_table_name = f"{config.sink.catalog}.{config.sink.schema_name}.{config.sink.table}"
 
@@ -40,7 +43,7 @@ class SparkEngine(BaseEngine):
         if config.validation_log_table and not self._table_exists(config.validation_log_table):
             self._create_validation_log_table(config)
     
-    def update_table(self, config: PipelineConfig):
+    def update_table(self, config: PipelineModel):
         """Applies schema and metadata changes to an existing table."""
         target_table_name = f"{config.sink.catalog}.{config.sink.schema_name}.{config.sink.table}"
 
@@ -102,7 +105,7 @@ class SparkEngine(BaseEngine):
         else:
             logger.info("  -> Primary keys have not changed. No action required for hash_key.")
 
-    def test(self, config: PipelineConfig):
+    def test(self, config: PipelineModel):
         pass
 
     def _table_exists(self, table_name: str) -> bool:
@@ -124,7 +127,7 @@ class SparkEngine(BaseEngine):
             return _apply_rename_pattern(spec.name)
         return spec.name
 
-    def _create_unified_table(self, config: PipelineConfig):
+    def _create_unified_table(self, config: PipelineModel):
         """Builds and executes the DDL for any table (Silver or Gold)."""
         sink_config = config.sink
         target_table_name = f"{sink_config.catalog}.{sink_config.schema_name}.{sink_config.table}"
@@ -179,7 +182,7 @@ class SparkEngine(BaseEngine):
             self.spark.sql(f"ALTER TABLE {target_table_name} SET TBLPROPERTIES ('framework.primary_keys' = '{','.join(sorted(list(primary_keys)))}')")
         logger.info("Table created successfully.")
 
-    def _create_validation_log_table(self, config: PipelineConfig):
+    def _create_validation_log_table(self, config: PipelineModel):
         """Creates the validation log table with a fixed schema."""
         logger.info(f"Creating validation log table: {config.validation_log_table}")
         log_ddl = f"""
@@ -226,7 +229,7 @@ class SparkEngine(BaseEngine):
         logger.info("\nRows in EXPECTED result that are NOT in ACTUAL:")
         df_expected.exceptAll(df_actual).show()
     
-    def execute_gold_transformation(self, config: PipelineConfig) -> DataFrame:
+    def execute_gold_transformation(self, config: PipelineModel) -> DataFrame:
         """Executes a sequence of SQL transformations for a Gold pipeline."""
         logger.info("  -> Reading dependencies...")
         for dep in config.dependencies:
