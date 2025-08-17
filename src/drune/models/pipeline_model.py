@@ -2,27 +2,45 @@ from typing import List, Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field, model_validator
 
 # Define reserved column names used by the framework
-RESERVED_COLUMN_NAMES = {
-    "id", "_hash_key", "_data_hash", 
-    "_created_at", "_updated_at",
-    "_is_current", "_start_date", "_end_date"
-}
+RESERVED_COLUMN_NAMES = ["id"]
 
-class ValidationRule(BaseModel):
-    """Defines a validation rule to be applied to a column."""
-    rule: str
-    on_fail: Literal['fail', 'drop', 'warn'] = 'fail'
+
+# Pipeline Section
+class TypeDafault(BaseModel):
+    """Default type transformation settings."""
+    type: str
+    format: Optional[str] = None
+    try_cast: bool = False
+    transform: List[str] = []
+
+class PipelineDefaults(BaseModel):
+    """Default settings for the pipeline."""
+    patterns: Dict[str, str] = {}
+    types: List[TypeDafault] = []
+
+class PipelineSpec(BaseModel):
+    """Base class for pipeline specifications."""
+    name: str
+    description: Optional[str] = None
+    engine: str = Field(..., description="Name of the engine to use for processing.")
+    metadata: Optional[str] = None
+    defaults: Optional[PipelineDefaults] = None
+
+# Column Section
+class ConstraintSpec(BaseModel):
+    """Defines a constraint to be applied to a column."""
+    rule: str = Field(..., description="The rule to apply, e.g., 'not_null', 'unique', 'pattern:regex'.")
+    on_fail: Literal['fail', 'drop', 'warn'] = 'fail'  # Action to take if the constraint fails
 
 class ColumnSpec(BaseModel):
     """Specification for a single column in a pipeline."""
     name: Optional[str] = Field(None, description="Original column name in the source.")
     rename: Optional[str] = Field(None, description="New name for the column after processing.")
-    description: Optional[str] = None
-    type: str
-    optional: bool = Field(False, description="If True, the source column can be missing.")
-    pk: bool = Field(False, description="Indicates if the column is part of the primary key.")
-    transform: Optional[str] = Field(None, description="SQL expression to transform the column.")
-    validation_rules: List[ValidationRule] = Field([], alias='validate')
+    description: Optional[str] = Field(None, description="Description of the column.")
+    type: str = Field(..., description="Data type of the column.")
+    optional: Optional[bool] = Field(False, description="If True, the source column can be missing.")
+    transform: Optional[List[str]] = Field(None, description="List of transformations to apply to the column in format 'func:arg1,arg2,...'.")
+    constraints: List[ConstraintSpec] = Field([], description="List of constraints to apply to the column.")
     format: Optional[str] = None
     try_cast: bool = False
 
@@ -46,99 +64,89 @@ class ColumnSpec(BaseModel):
     def check_reserved_names(cls, values):
         """Validates that the final column name is not a reserved name."""
         final_name = getattr(values, 'rename', None) or getattr(values, 'name', None)
-        if final_name and final_name.lower() in RESERVED_COLUMN_NAMES:
+
+        if final_name.lower() in RESERVED_COLUMN_NAMES:
             raise ValueError(
                 f"The column name '{final_name}' is reserved by the framework. "
                 f"Reserved names are: {RESERVED_COLUMN_NAMES}"
             )
+        
+        if final_name.startswith("_"):
+            raise ValueError(
+                "Column names cannot start with an underscore ('_')."
+                f"Found: '{final_name}'"
+            )
+        
         return values
 
-class ForeignKey(BaseModel):
-    """Defines a foreign key constraint."""
-    name: str
-    local_columns: List[str]
-    references_table: str
-    references_columns: List[str]
+# Target Section
+class InheritsSpec(BaseModel):
+    """Specifies the parent table to inherit schema from."""
+    from_name: str = Field(..., description="Name of the parent table to inherit schema from.", alias='from')
+    columns: Optional[List[str]] = Field(None, description="List of columns to include from the inherited schema. If not provided, all columns will be included.")
+    exclude: Optional[List[str]] = Field(None, description="List of columns to exclude from the inherited schema.")
 
-class TableValidation(BaseModel):
-    """Defines a table-level validation."""
-    type: Literal['duplicate_check']
-    columns: List[str]
-    on_fail: Literal['fail', 'warn'] = 'fail'
+class TargetSchemaSpec(BaseModel):
+    """Schema specification for the target table."""
+    primary_key: List[str] = Field([], description="List of primary key columns.")
+    partition_by: Optional[List[str]] = Field(None, description="List of columns to partition the data by.")
 
-class Defaults(BaseModel):
-    """Defines default behaviors for the pipeline."""
-    date_format: Optional[str] = None
-    column_rename_pattern: Literal['snake_case', 'none'] = 'none'
-
-class SourceConfig(BaseModel):
-    """Configuration for the data source."""
-    type: Literal['file', 'database', 'api']
-    format: str
-    path: Optional[str] = None
-    table: Optional[str] = None
-    query: Optional[str] = None
-    options: Dict[str, Any] = {}
-    expected_columns: Optional[int] = None
+    inherits: Optional[List[InheritsSpec]] = Field(None, description="Specification for inheriting schema from another table.")
+    columns: List[ColumnSpec] = Field([], description="List of columns in the schema.")
 
 class SCDConfig(BaseModel):
     """Configuration for Slowly Changing Dimension (SCD)."""
     type: Literal['2'] = '2'
     track_columns: Optional[List[str]] = Field(None, description="Columns to track for changes. If not provided, all non-PK columns will be tracked.")
 
-class SinkConfig(BaseModel):
-    """Configuration for the data sink."""
+class TargetSpec(BaseModel):
+    """Configuration for the data target."""
+    name: str = Field(..., description="Name of the target table.")
+    description: Optional[str] = None
+    type: Literal['file', 'query', 'table'] = Field(..., description="Type of the target, e.g., 'file', 'query', 'table'.")
     format: str = Field(..., description="Output format, e.g., 'delta', 'parquet'.")
     path: Optional[str] = None
     table: Optional[str] = None
-    mode: Literal['append', 'overwrite', 'merge', 'overwrite_partition', 'overwrite_where']
-    overwrite_condition: Optional[str] = None
-    partition_by: Optional[List[str]] = None
-    zorder_by: Optional[List[str]] = None
-    scd: Optional[SCDConfig] = None
+    query: Optional[str] = None
+    mode: Literal[
+        'append', 
+        'overwrite', 
+        'merge', 
+        'overwrite_partition', 
+        'overwrite_where'] = Field('append', description="Write mode for the target, e.g., 'append', 'overwrite', 'merge', 'overwrite_partition', 'overwrite_where'.")
+    overwrite_condition: Optional[str] = Field(None, description="Condition for overwriting data, applicable for 'overwrite_where' mode.")
+    scd: Optional[SCDConfig] = Field(None, description="Configuration for Slowly Changing Dimension (SCD).")
+    options: Dict[str, Any] = Field(default_factory=dict, description="Additional options for the target.")
 
-class TestConfig(BaseModel):
-    """Configuration for pipeline testing."""
-    source_data: SourceConfig = Field(..., description="Path to the input data for the test.")
-    expected_results_data: SourceConfig = Field(..., description="Full name of the table containing the expected results.")
-    output_data: SourceConfig = Field(..., description="Path to the output data generated by the pipeline.")
+    schema_spec: TargetSchemaSpec = Field(..., description="Schema specification for the target table.", alias='schema')
+
+# Source Section
+class SourceSchemaSpec(BaseModel):
+    """Schema specification for the source table."""
+    primary_key: List[str] = Field([], description="List of primary key columns.")
+    columns: List[ColumnSpec] = Field([], description="List of columns in the schema.")
+class SourceSpec(BaseModel):
+    """Configuration for the data source."""
+    name: str = Field(..., description="Name of the source.")
+    type: Literal['file', 'query', 'table'] = Field(..., description="Type of the source, e.g., 'file', 'query', 'table'.")
+    format: str = Field(..., description="Input format, e.g., 'delta', 'parquet'.")
+    path: Optional[str] = None
+    table: Optional[str] = None
+    query: Optional[str] = None
+    options: Dict[str, Any] = {}
+    
+    schema_spec: Optional[SourceSchemaSpec] = Field(None, description="Schema specification for the source table.", alias='schema')
 
 class StepConfig(BaseModel):
     """Configuration for a generic pipeline step."""
-    name: str
+    name: str = Field(..., description="Name of the step, used for logging and tracking.")
+    description: Optional[str] = None
     type: str = Field(..., description="Type of the step, e.g., 'read', 'transform', 'validate', 'write'.")
     params: Dict[str, Any] = {}
 
 class PipelineModel(BaseModel):
     """Main configuration model for a pipeline."""
-    engine: str
-    pipeline_type: Literal['silver', 'gold'] = Field('silver', description="Type of the pipeline.")
-    pipeline_name: str
-    description: Optional[str] = None
-    dependencies: Optional[List[str]] = Field([], description="List of tables this pipeline depends on.")
-    defaults: Defaults = Field(default_factory=Defaults)
-    sources: Dict[str, SourceConfig] = Field(..., description="Sources of data for the pipeline.")
-    sink: SinkConfig
-    columns: List[ColumnSpec] = []
-    steps: Optional[List[StepConfig]] = None
-    table_validations: List[TableValidation] = []
-    validation_log_table: Optional[str] = None
-    test: Optional[TestConfig] = None
-    foreign_keys: List[ForeignKey] = []
-    custom_transform_script: Optional[str] = None
-
-    # @model_validator(mode="after")
-    # def validate_pipeline_type(cls, values):
-    #     """Validates configuration based on the pipeline type."""
-    #     pipeline_type = getattr(values, 'pipeline_type', None)
-    #     if pipeline_type == 'silver':
-    #         if not getattr(values, 'source', None):
-    #             raise ValueError("'source' is required for silver pipelines.")
-    #         if not getattr(values, 'columns', None):
-    #             raise ValueError("'columns' are required for silver pipelines.")
-    #     elif pipeline_type == 'gold':
-    #         if not getattr(values, 'transformation', None):
-    #             raise ValueError("'transformation' is required for gold pipelines.")
-    #         if not getattr(values, 'dependencies', None):
-    #             raise ValueError("'dependencies' are required for gold pipelines.")
-    #     return values
+    pipeline: PipelineSpec
+    target: TargetSpec
+    sources: List[SourceSpec] = Field(..., description="List of data sources for the pipeline.")
+    steps: Optional[List[StepConfig]] = Field([], description="List of pipeline steps.")

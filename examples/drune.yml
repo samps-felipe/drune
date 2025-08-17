@@ -1,2 +1,62 @@
-engine: pandas
-pipelines: pipelines/
+# 1. Project Name and Metadata
+project_name: "drune_example_analytics"
+description: "Example project for processing customer and sales data."
+version: "1.0.0"
+
+# 2. Connection Profiles (Optional, but recommended)
+# Centralizes connection settings for different environments (e.g., dev, prod).
+# In production, passwords should be injected via environment variables.
+profiles:
+  development:
+    main_db:
+      type: postgres
+      host: localhost
+      port: 5432
+      user: dev_user
+      password: "dev_password" # For a real project, use: "${DB_PASSWORD}"
+      dbname: analytics_dev
+  production:
+    main_db:
+      type: postgres
+      host: prod.db.example.com
+      port: 5432
+      user: prod_user
+      password: "${DB_PASSWORD}" # Injected from the environment
+      dbname: analytics
+
+# 3. Default Path Definitions
+# Defines the default directories for the project.
+paths:
+  pipelines: "pipelines/"
+  sources: "data/sources/"  # Directory for raw data
+  targets: "data/targets/"  # Directory for processed data
+  logs: "logs/"
+
+# 4. Global Pipeline Defaults
+# These settings will be inherited by all 'model.yml' and 'steps.yml' files
+# unless they are overridden locally.
+defaults:
+  # Default processing engine for all pipelines
+  engine: pandas
+
+  # Default transformations by data type (inherited by all models)
+  type_defaults:
+    string: [trim, upper]
+    integer: [] # No default transformations for integers
+
+  # Defaults for sources and targets (sinks)
+  source_defaults:
+    file: # Defaults for sources of type 'file'
+      options:
+        header: true
+        inferSchema: false # Safer not to infer schema by default
+  target_defaults:
+    file: # Defaults for targets of type 'file'
+      format: "parquet" # Using Parquet by default is a good practice
+      mode: "overwrite"
+
+# 5. Global Variables (Optional)
+# Variables that can be used anywhere in the project with the syntax {{ vars.min_date }}
+vars:
+  min_date: "2020-01-01"
+  regions: ["north", "south", "east", "west"]

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Type
-from drune.models import PipelineModel
+from drune.models import ProjectModel
 
 # This will hold the mapping from engine name to engine class
 _engine_registry: Dict[str, Type] = {}
@@ -26,19 +26,16 @@ def get_engine(name: str) -> Type:
     return _engine_registry[name]
 
 class BaseEngine(ABC):
-    """
-    Classe Abstrata que define o contrato para qualquer motor de processamento (Engine).
-    Qualquer novo engine (ex: PandasEngine) deve implementar estes métodos.
-    """
+
     @abstractmethod
-    def __init__(self, config: PipelineModel):
+    def __init__(self, config: ProjectModel):
         """Initializes the engine with the given pipeline configuration."""
         pass
 
-    @abstractmethod
-    def run(self):
-        """Executes the pipeline by dynamically running the steps defined in the config."""
-        pass
+    # @abstractmethod
+    # def run(self):
+    #     """Executes the pipeline by dynamically running the steps defined in the config."""
+    #     pass
     
     # @abstractmethod
     # def create_table(self):

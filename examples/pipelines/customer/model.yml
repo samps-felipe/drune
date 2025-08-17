@@ -1,55 +1,75 @@
-engine: pandas
-pipeline_name: customer_pipeline
-description: Pipeline de exemplo para teste
-dependencies: []
+pipeline:
+  name: customer_pipeline
+  engine: pandas
+  
+  defaults:
+    patterns:
+      rename: snake_case
+      email: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+    types: 
+      - type: str
+        transform: ["trim", "upper"]
+      - type: int
+        try_cast: true
+      - type: float
+        format: "{:.2f}"
+        try_cast: true
+      - type: date
+        format: "yyyy-MM-dd"
 
-defaults:
-  date_format: "yyyy-MM-dd"
-  column_rename_pattern: snake_case
-
-sources:
-  customer_data:
-    type: file
-    format: csv
-    path: "C:\\Users\\felipe.sampaio_visag\\Documents\\git\\drune\\examples\\data\\customer.csv"
-
-sink:
+target:
+  name: dm_customer
+  description: Processed customer data for analytics
+  type: file
   format: csv
-  path: "dados/saida/teste.csv"
+  path: "output/"
   mode: overwrite
 
-columns:
-  - name: customer_id
-    rename: cd
-    type: int
-    pk: true
-    validate:
-      - rule: "isin:[101,102]"
-        on_fail: "warn"
-  - name: first_name
-    type: str
-  - name: last_name
-    type: str
-    optional: true
-  - name: email
-    type: str
-    validate:
-      - rule: "pattern:^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-        on_fail: "drop"
-  - name: document
-    rename: doc
-    type: str
+  schema:
+    primary_key: [customer_id]
+    partition_by: []
 
+    inherits:
+      - from: customer_input
+        exclude: [document]
+    
+    columns:
+      - name: new_column
+        type: str
+        description: "Newly added column for additional information"  
 
-table_validations: []
-foreign_keys: []
-
-steps:
-  - name: read_data
-    type: read
-  - name: transform_data
-    type: transform
-  - name: validate_data
-    type: validate
-  - name: write_data
-    type: write
+sources:
+  - name: customer_input
+    type: file
+    format: csv
+    path: "C:/Users/felipe.sampaio_visag/Documents/git/drune/examples/data/"
+    options:
+      header: true
+      inferSchema: true
+      delimiter: ","
+      encoding: "utf-8"
+    
+    schema:
+      columns:
+        - name: customer_id
+          rename: cd
+          type: int
+          constraints: 
+            - rule: "not_null"
+              on_fail: "drop"
+            - rule: "unique"
+              on_fail: "warn"
+        - name: first_name
+          type: str
+          transform: ["trim", "upper"]
+        - name: last_name
+          type: str
+        - name: email
+          type: str
+          optional: true
+          constraints:
+            - rule: "pattern:^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+              on_fail: "drop"
+        - name: document
+          rename: doc
+          type: str

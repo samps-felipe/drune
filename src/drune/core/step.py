@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Type, Any, Tuple
 from .engine import BaseEngine
-from ..utils.logger import get_logger
+from drune.utils.logger import get_logger
 
 # This will hold the mapping from step name to step class
 _step_registry: Dict[str, Type] = {}
@@ -24,7 +24,11 @@ def register_step(name: str, cls: Type = None):
 
 def get_step(name: str) -> Type:
     """Retrieves a step class from the registry."""
-    return _step_registry.get(name)
+    step_class = _step_registry.get(name)
+    if not step_class:
+        raise ValueError(f"Step type '{name}' not found in registry.")
+    
+    return step_class
 
 class BaseStep(ABC):
     """

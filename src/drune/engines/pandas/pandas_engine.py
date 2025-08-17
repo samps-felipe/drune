@@ -1,11 +1,11 @@
 from drune.core.engine import BaseEngine, register_engine
 from drune.core.step import get_step
-from drune.models import PipelineModel
+from drune.models import ProjectModel
 from .steps import ReadStep, WriteStep, TransformStep, ValidateStep
 
 @register_engine('pandas')
 class PandasEngine(BaseEngine):
-    def __init__(self, config: PipelineModel):
+    def __init__(self, config: ProjectModel):
         import pandas as pd
         self.config = config
 
@@ -21,11 +21,11 @@ class PandasEngine(BaseEngine):
             df = step_instance.execute(df, **step_config.params)
         return df
 
-    def create_table(self, config: PipelineModel):
-        # Pandas engine does not create tables in a persistent catalog.
-        # This could be implemented to create a schema file or similar.
-        pass
+    # def create_table(self, config: PipelineModel):
+    #     # Pandas engine does not create tables in a persistent catalog.
+    #     # This could be implemented to create a schema file or similar.
+    #     pass
 
-    def update_table(self, config: PipelineModel):
-        # Pandas engine does not update tables in a persistent catalog.
-        pass
+    # def update_table(self, config: PipelineModel):
+    #     # Pandas engine does not update tables in a persistent catalog.
+    #     pass

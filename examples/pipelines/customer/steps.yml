@@ -1,9 +1,6 @@
 steps:
-  - name: read_data
-    type: read
-  - name: transform_data
+  - name: name_for_log_purpose
     type: transform
-  - name: validate_data
+  - name: name_for_log_purpose_2
     type: validate
-  - name: write_data
-    type: write
+
