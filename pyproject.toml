@@ -10,6 +10,7 @@ readme = "README.md"
 authors = [
 	{ name = "Felipe Sampaio"}
 ]
+license = "MIT"
 requires-python = ">=3.8"
 classifiers = [
 	"Programming Language :: Python :: 3",
@@ -59,6 +60,7 @@ drune = "drune.cli.main:cli"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
