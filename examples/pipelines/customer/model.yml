@@ -44,8 +44,7 @@ sources:
     format: csv
     path: "C:/Users/felipe.sampaio_visag/Documents/git/drune/examples/data/"
     options:
-      header: true
-      inferSchema: true
+      header: 0
       delimiter: ","
       encoding: "utf-8"
     

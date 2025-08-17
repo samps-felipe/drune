@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Any, Dict, Optional
 import yaml
 from drune.core.step import get_step
 from drune.models import PipelineModel
@@ -13,18 +13,31 @@ import drune.metadata as metadata # Ensure metadata are imported to register the
 
 from drune.utils.logger import get_logger
 from drune.utils.exceptions import ConfigurationError
+from drune.core.state import PipelineState
 import glob
+
+
 
 class Pipeline:
     def __init__(self, pipeline_path: str, project_path: str = 'drune.yml'):
         """Initializes the Pipeline with the given configuration."""
-        self._load_project(project_path)
-        self._load_pipeline(pipeline_path)
 
-        engine_class = get_engine(self.config.engine)
+        self.project = self._load_project(project_path)
+        self.config = self._load_pipeline(pipeline_path)
+
+        engine_class = get_engine(self.config.pipeline.engine)
         self.engine = engine_class(self.project)
 
-        self.logger = get_logger(f"pipeline:{self.config.name}")
+        self.logger = get_logger(f"pipeline:{self.config.pipeline.name}")
+
+        self.state = PipelineState()
+
+        self.read_functions = {
+            'file': self._read_file,
+            'table': self._read_table,
+            'query': self._read_query
+        }
+        
 
     
     def create(self):
@@ -42,12 +55,44 @@ class Pipeline:
         self.engine.run(path)
         self.logger.info("Pipeline run finished.")
     
-    def read(self, path: Optional[str] = None):
+    def read(self, src_paths: Optional[Dict[str, str]] = None):
         """Reads data from the source defined in the pipeline configuration."""
-        self.logger.info(f"Starting data read for: {self.config.pipeline_name}")
-        data = self.engine.read(path)
-        self.logger.info("Data read finished.")
-        return data
+        self.logger.info(f"Starting reading sources...")
+
+        for source in self.config.sources:
+            source = source.model_copy()  # Create a copy to avoid modifying the original source
+            if src_paths and source.name in src_paths:
+                if not os.path.isabs(src_paths[source.name]):
+                    source.path = os.path.join(source.path, src_paths[source.name])
+                else:
+                    source.path = src_paths[source.name]
+            
+            read_function = self.read_functions.get(source.type)
+
+            if not read_function:
+                raise ConfigurationError(f"Source type '{source.type}' is not supported by the engine.")
+
+            self.state.sources[source.name] = read_function(source)
+
+            # Apply schema
+            self.engine.apply_schema(self.state.sources[source.name], source.schema_spec)
+
+        
+    
+    def _read_file(self, source) -> Any:
+        """Reads a file from the specified source configuration."""
+        return self.engine.read_file(source)
+
+    
+    def _read_table(self, source) -> Any:
+        """Reads a table from the database using the engine's read_table method."""
+        table_name = source.table
+        return self.engine.read_table(table_name)
+    
+    def _read_query(self, source) -> Any:
+        """Executes a SQL query using the engine's execute_query method."""
+        query = source.query
+        return self.engine.execute_query(query)
     
     def write(self, data, path: Optional[str] = None):
         """Writes data to the target defined in the pipeline configuration."""
@@ -102,12 +147,7 @@ class Pipeline:
                 yml_dict = yaml.safe_load(file) or {}
                 merged_dict.update(yml_dict)
  
-        spec = PipelineModel(**merged_dict)
-        
-        self.config = spec.pipeline
-        self.target = spec.target
-        self.sources = spec.sources
-        self.steps = spec.steps
+        return PipelineModel(**merged_dict)
 
     
     def _load_project(self, path: str) -> ProjectModel:
@@ -117,5 +157,5 @@ class Pipeline:
         with open(path, 'r') as file:
             yml_dict = yaml.safe_load(file)
         
-        self.project = ProjectModel(**yml_dict)
+        return ProjectModel(**yml_dict)
     

@@ -5,14 +5,14 @@ from drune.core.step import BaseStep, register_step
 from drune.utils.exceptions import ValidationError
 from drune.core.quality import BaseValidation, get_validation_rule, register_rule
 
-@register_rule('not_null')
+@register_rule('pandas', 'not_null')
 class NotNullValidation(BaseValidation):
     def apply(self, df: pd.DataFrame, column_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
         success_df = df[df[column_name].notna()]
         failures_df = df[df[column_name].isna()]
         return failures_df, success_df
 
-@register_rule('isin')
+@register_rule('pandas', 'isin')
 class IsInValidation(BaseValidation):
     def __init__(self, params: dict):
         super().__init__(params)
@@ -51,20 +51,6 @@ class ValidateStep(BaseStep):
         sources['_output'] = df
 
         return sources
-
-    def _parse_rule(self, rule_string: str) -> tuple:
-        parts = rule_string.split(':', 1)
-        return parts[0], parts[1] if len(parts) > 1 else None
-
-    def _create_validator(self, rule_name: str, param: str):
-
-        rule_class = get_validation_rule(rule_name)
-
-        if not rule_class:
-            self.logger.warning(f"Validation rule '{rule_name}' is not registered. Skipping.")
-            return None
-        else:
-            return rule_class(param)
 
 
 

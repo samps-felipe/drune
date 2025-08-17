@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Type, Any, Tuple
-from .engine import BaseEngine
+from drune.core.state import PipelineState
 from drune.utils.logger import get_logger
 
 # This will hold the mapping from step name to step class
@@ -22,7 +22,7 @@ def register_step(name: str, cls: Type = None):
     
     return decorator
 
-def get_step(name: str) -> Type:
+def get_step(name: str) -> Type['BaseStep']:
     """Retrieves a step class from the registry."""
     step_class = _step_registry.get(name)
     if not step_class:
@@ -34,13 +34,13 @@ class BaseStep(ABC):
     """
     Abstract base class that defines the contract for any pipeline step.
     """
-    def __init__(self, engine: BaseEngine):
-        self.engine = engine
-        self.config = engine.config
-        self.logger = get_logger(self.__class__.__name__)
+    def __init__(self, name: str, params: dict = {}):
+        self.name = name
+        self.params = params
+        self.logger = get_logger(self.name)
 
     @abstractmethod
-    def execute(self, previous_result: Any, options: Dict = None) -> Tuple[Any, Dict]:
+    def execute(self, previous: PipelineState = None, **kwargs):
         """
         Executes the logic of the step.
         It receives the result of the previous step and optional parameters.
