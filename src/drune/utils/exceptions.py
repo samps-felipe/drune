@@ -12,7 +12,7 @@ class StepExecutionError(DruneError):
     """Raised for errors during a step execution."""
     pass
 
-class ValidationError(StepExecutionError):
+class ConstraintError(StepExecutionError):
     """Raised for data validation errors."""
     pass
 

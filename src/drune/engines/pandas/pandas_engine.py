@@ -1,15 +1,17 @@
+import os
 from typing import Any, Type, List
 from drune.core.engine import BaseEngine, register_engine
 from drune.core.step import get_step
 from drune.models import ProjectModel, ColumnSpec
 from drune.utils.logger import get_logger
-from .steps import ReadStep, WriteStep, TransformStep, ValidateStep
-from drune.utils.exceptions import ConfigurationError
+from .steps import *
+from drune.utils.exceptions import ConfigurationError, ConstraintError
 
 @register_engine('pandas')
 class PandasEngine(BaseEngine):
     def __init__(self, config: ProjectModel):
         import pandas as pd
+        self.name = 'pandas'
         self.config = config
         self.pd = pd
         self.logger = get_logger("engine:pandas")
@@ -151,3 +153,27 @@ class PandasEngine(BaseEngine):
         
         self.logger.info("Schema applied successfully.")
         return df
+    
+    def write_list(self, fails_list: List[Any], path: str):
+        """Writes a list of DataFrames to the specified path."""
+        if not fails_list:
+            self.logger.info("No failed records to write.")
+            return
+
+        # Concatenate all failed dataframes into one
+
+        common_columns = list(set.intersection(*[set(df.columns) for df in fails_list]))
+        fails_list = [df[common_columns] for df in fails_list]
+
+        all_fails_df = self.pd.concat(fails_list, ignore_index=True)
+        
+        # Define the output file path
+        output_file_path = os.path.join(path, "failed_records.csv")
+
+        # Write to CSV
+        if os.path.exists(output_file_path):
+            all_fails_df.to_csv(output_file_path, mode='a', header=False, index=False)
+        else:
+            all_fails_df.to_csv(output_file_path, mode='w', header=True, index=False)
+        
+        self.logger.info(f"Wrote {len(all_fails_df)} failed records to {output_file_path}")

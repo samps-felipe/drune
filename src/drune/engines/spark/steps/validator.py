@@ -8,10 +8,6 @@ class ValidateStep(BaseStep):
     """
     Orchestrates the execution of column and table validations.
     """
-    def _parse_rule(self, rule_string: str) -> tuple:
-        """Extracts rule name and parameter. Ex: 'pattern:regex' -> ('pattern', 'regex')"""
-        parts = rule_string.split(':', 1)
-        return parts[0], parts[1] if len(parts) > 1 else None
 
     def _create_validator(self, rule_name: str, param: str):
         """Creates a validator instance using the registry, passing all parameters as a dict."""

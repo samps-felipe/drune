@@ -1,6 +1,7 @@
 import os
 from typing import Any, Dict, Optional
 import yaml
+from drune.core.quality import DataQualityProcessor
 from drune.core.step import get_step
 from drune.models import PipelineModel
 from drune.models import ProjectModel
@@ -8,7 +9,7 @@ from drune.models import ProjectModel
 from drune.core.engine import get_engine
 import drune.engines  as engines # Ensure engines are imported to register them
 
-from drune.core.metadata import get_Metadata
+from drune.core.metadata import get_metadata
 import drune.metadata as metadata # Ensure metadata are imported to register them
 
 from drune.utils.logger import get_logger
@@ -37,7 +38,10 @@ class Pipeline:
             'table': self._read_table,
             'query': self._read_query
         }
-        
+
+        log_path = os.path.join(self.project_dir, self.project.paths.logs)
+
+        self.quality = DataQualityProcessor(self.engine, log_path)
 
     
     def create(self):
@@ -55,7 +59,7 @@ class Pipeline:
         self.engine.run(path)
         self.logger.info("Pipeline run finished.")
     
-    def read(self, src_paths: Optional[Dict[str, str]] = None):
+    def read(self, src_paths: Optional[Dict[str, str]] = None, apply_schema: bool = True, apply_constraints: bool = True):
         """Reads data from the source defined in the pipeline configuration."""
         self.logger.info(f"Starting reading sources...")
 
@@ -75,9 +79,14 @@ class Pipeline:
             self.state.sources[source.name] = read_function(source)
 
             # Apply schema
-            self.engine.apply_schema(self.state.sources[source.name], source.schema_spec)
+            if apply_schema:
+                self.state.sources[source.name] = self.engine.apply_schema(self.state.sources[source.name], source.schema_spec)
 
-        
+            # Apply constraints
+            if apply_constraints:
+                self.state.sources[source.name] = self.quality.apply_schema_constraints(self.state.sources[source.name], source.schema_spec)       
+
+
     
     def _read_file(self, source) -> Any:
         """Reads a file from the specified source configuration."""
@@ -133,9 +142,8 @@ class Pipeline:
     def _load_pipeline(self, path: str) -> PipelineModel:
         """Loads and merges all YAML files in a directory, then parses as PipelineModel."""
         if self.project.paths.pipelines and not os.path.isabs(path):
-            project_dir = os.path.dirname(self.project_path)
             pipeline_dir = os.path.dirname(self.project.paths.pipelines)
-            pipeline_dir = os.path.join(project_dir, pipeline_dir, path)
+            pipeline_dir = os.path.join(self.project_dir, pipeline_dir, path)
         else:
             pipeline_dir = path
         
@@ -152,8 +160,12 @@ class Pipeline:
     
     def _load_project(self, path: str) -> ProjectModel:
         """Loads a project configuration from a YAML file."""
-        self.project_path = path
+        if not os.path.isabs(path):
+            path = os.path.abspath(path)
 
+        # get only the dir path
+        self.project_dir = os.path.dirname(path)
+        
         with open(path, 'r') as file:
             yml_dict = yaml.safe_load(file)
         

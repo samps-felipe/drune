@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Type
 from drune.models import ProjectModel
 
+
 # This will hold the mapping from engine name to engine class
 _engine_registry: Dict[str, Type] = {}
 
@@ -22,8 +23,13 @@ def register_engine(name: str, cls: Type = None):
     return decorator
 
 def get_engine(name: str) -> Type:
-    """Retrieves a engine from the registry."""
-    return _engine_registry[name]
+    """Retrieves an engine from the registry."""
+    try:
+        return _engine_registry[name]
+    except KeyError:
+        raise NotImplementedError(
+        f"Engine '{name}' not implemented. "
+        f"Available engines: {list(_engine_registry.keys())}")
 
 class BaseEngine(ABC):
 
@@ -48,7 +54,7 @@ class BaseEngine(ABC):
         pass
 
     @abstractmethod
-    def write(self, data: Any, path: str = None):
+    def write(self, data: Any, target: Any):
         """Writes data to the specified target configuration."""
         pass
 
@@ -56,13 +62,3 @@ class BaseEngine(ABC):
     def apply_schema(self, df, schema) -> Any:
         """Applies the schema to the DataFrame."""
         pass
-    
-    # @abstractmethod
-    # def create_table(self):
-    #     """Creates the table schema at the destination."""
-    #     pass
-
-    # @abstractmethod
-    # def update_table(self):
-    #     """Applies schema or metadata changes to an existing table."""
-    #     pass

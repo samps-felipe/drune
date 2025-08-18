@@ -1,63 +1,113 @@
-from typing import Dict
+from typing import Any, Dict, Tuple
 import pandas as pd
 import ast
 from drune.core.step import BaseStep, register_step
-from drune.utils.exceptions import ValidationError
-from drune.core.quality import BaseValidation, get_validation_rule, register_rule
+# from drune.utils.exceptions import ValidationError
+from drune.core.quality import BaseConstraintRule, get_constraint_rule, register_constraint
+from drune.models import ValidationResult
+import datetime
 
-@register_rule('pandas', 'not_null')
-class NotNullValidation(BaseValidation):
-    def apply(self, df: pd.DataFrame, column_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-        success_df = df[df[column_name].notna()]
-        failures_df = df[df[column_name].isna()]
-        return failures_df, success_df
 
-@register_rule('pandas', 'isin')
-class IsInValidation(BaseValidation):
-    def __init__(self, params: dict):
-        super().__init__(params)
-        # Assuming params contains a string representation of a list of allowed values
-        self.allowed_values = ast.literal_eval(self.params)
+class PandasConstraintRule(BaseConstraintRule):
+    """Base class for all column constraints in Pandas."""
+    def _format_dataframe_fail(self, df: pd.DataFrame):
+        df = df.reset_index()
 
-    def apply(self, df: pd.DataFrame, column_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-        success_df = df[df[column_name].isin(self.allowed_values)]
-        failures_df = df[~df[column_name].isin(self.allowed_values)]
-        return failures_df, success_df
+        key_column_name = '_hash_key' if '_hash_key' in df.columns else 'index'
+        df['key_column_name'] = key_column_name
+        df['key_column_value'] = df[key_column_name]
+        df['constraint_name'] = self.name
+        df['constraint_action'] = 'warn'
+        df['column_name'] = self.column
+        df['message'] = f"Warning for value in column '{self.column}'"
+        df['created_at'] = datetime.datetime.now()
 
-@register_step('validate')
-class ValidateStep(BaseStep):
-    """Step responsible for applying data quality validations to a pandas DataFrame."""
-    def execute(self, sources: Dict[str, pd.DataFrame] = None, **kwargs) -> Dict[str, pd.DataFrame]:
-        self.logger.info("--- Step: Validate (Pandas) ---")
+        df = df.drop(columns=[self.uuid])
 
-        df = sources.get('_output')
+        print(df.columns)
 
-        for column_spec in self.config.columns:
-            for rule in column_spec.validation_rules:
-                rule_name, params = self._parse_rule(rule.rule)
-                validator = self._create_validator(rule_name, params)
-
-                if validator:
-                    failures_df, success_df = validator.apply(df, column_spec.rename or column_spec.name)
-                    if not failures_df.empty:
-                        if rule.on_fail == 'fail':
-                            raise ValidationError(f"Validation failed for column '{column_spec.name}' with rule '{rule.rule}'.")
-                        elif rule.on_fail == 'drop':
-                            df = success_df
-                            self.logger.info(f"Dropped {len(failures_df)} rows from column '{column_spec.name}' due to validation rule '{rule.rule}'.")
-                        elif rule.on_fail == 'warn':
-                            self.logger.warning(f"Validation failed for column '{column_spec.name}' with rule '{rule.rule}'.")
+        return df
         
-        sources['_output'] = df
-
-        return sources
 
 
+    def fail(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Returns the DataFrame rows that failed the constraint."""
+        mask = df[self.uuid]
+        fail_df = df.loc[~mask].copy()
+        fail_df = self._format_dataframe_fail(fail_df)
 
-        # if rule_name == 'not_null':
-        #     return NotNullValidation()
-        # elif rule_name == 'isin':
-        #     return IsInValidation({'allowed_values_str': param})
-        # else:
-        #     self.logger.warning(f"Unknown validation rule '{rule_name}'. Skipping.")
-        #     return None
+        df.drop(columns=[self.uuid], inplace=True)
+
+        self.logger.error(
+            f"{len(fail_df)} failed values in column '{self.column}'"
+        )
+
+        return df, fail_df
+
+    def drop(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Returns the DataFrame with failed rows dropped."""
+        mask = df[self.uuid]
+        fail_df = df.loc[~mask].copy()
+        fail_df = self._format_dataframe_fail(fail_df)
+
+        df.drop(columns=[self.uuid], inplace=True)
+
+        new_df = df[mask]
+
+        self.logger.warning(
+            f"{len(fail_df)} dropped values in column '{self.column}'"
+        )
+
+        return new_df, fail_df
+
+    def warn(self, df: pd.DataFrame) -> None:
+        """Logs a warning for failed rows."""
+        mask = df[self.uuid]
+        fail_df = df.loc[~mask].copy()
+        fail_df = self._format_dataframe_fail(fail_df)
+
+        df.drop(columns=[self.uuid], inplace=True)
+
+        if not fail_df.empty:
+            self.logger.warning(
+                f"{len(fail_df)} warning values in column '{self.column}'"
+            )
+        
+        return df, fail_df
+
+@register_constraint('pandas', 'not_null')
+class NotNullConstraint(PandasConstraintRule):
+    def apply(self, df: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+        self.column = params['column_name']
+        mask = df[self.column].notna()
+        df[self.uuid] = mask
+        return df
+
+@register_constraint('pandas', 'unique')
+class UniqueConstraint(PandasConstraintRule):
+    def apply(self, df: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+        self.column = params['column_name']
+        mask = ~df[self.column].duplicated(keep=False)
+        df[self.uuid] = mask
+        return df
+
+@register_constraint('pandas', 'isin')
+class IsInConstraint(PandasConstraintRule):
+    def apply(self, df: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+        self.column = params['column_name']
+        allowed_values = params[0]
+        mask = df[self.column].isin(allowed_values)
+        df[self.uuid] = mask
+        return df
+
+@register_constraint('pandas', 'pattern')
+class PatternConstraint(PandasConstraintRule):
+    def apply(self, df: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+        self.column = params['column_name']
+        pattern = params.get('pattern') or params.get(0)
+
+        if not pattern:
+            raise ValueError("Pattern not provided for pattern constraint.")
+        mask = df[self.column].str.match(pattern)
+        df[self.uuid] = mask
+        return df

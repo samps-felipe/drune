@@ -30,7 +30,7 @@ paths:
   pipelines: "pipelines/"
   sources: "data/sources/"  # Directory for raw data
   targets: "data/targets/"  # Directory for processed data
-  logs: "logs/"
+  logs: "../scratch/logs/"
 
 # 4. Global Pipeline Defaults
 # These settings will be inherited by all 'model.yml' and 'steps.yml' files

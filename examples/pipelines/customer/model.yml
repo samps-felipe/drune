@@ -55,9 +55,9 @@ sources:
           type: int
           constraints: 
             - rule: "not_null"
-              on_fail: "drop"
+              on_fail: "fail"
             - rule: "unique"
-              on_fail: "warn"
+              on_fail: "drop"
         - name: first_name
           type: str
           transform: ["trim", "upper"]
@@ -67,7 +67,7 @@ sources:
           type: str
           optional: true
           constraints:
-            - rule: "pattern:^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+            - rule: "pattern:'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'"
               on_fail: "drop"
         - name: document
           rename: doc
