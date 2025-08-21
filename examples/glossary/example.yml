@@ -1,14 +1,68 @@
-terms:
-  - name: teste
-    description: teste description
-    calculation: teste + outro / outro
-    tags: [finance, testing]
-    examples:
-      - question: alguma coisa
-        answer: alguma resposta
-  
-  - name: teste2
-    description: teste2 description
-    calculation: teste2
+concepts:
+  - name: "Customer Lifetime Value (CLV)"
+    description: "A prediction of the net profit attributed to the entire future relationship with a customer."
+    synonyms:
+      - "CLV"
+      - "LTV"
+    calculations:
+      - name: "Simple CLV"
+        formula: "(Average Purchase Value * Purchase Frequency) * Customer Lifespan"
+        description: "A basic formula to get a rough estimate of CLV."
+        example_query:
+          - question: "What is the simple CLV for each customer?"
+            query: |
+              SELECT
+                customer_id,
+                (avg(purchase_value) * count(purchase_id) / count(distinct customer_id)) * (max(order_date) - min(order_date)) as clv
+              FROM
+                sales
+              GROUP BY
+                customer_id;
+      - name: "Granular CLV"
+        formula: "((Average Order Value * Purchase Frequency) / Churn Rate) * Profit Margin"
+        description: "A more detailed formula that accounts for churn and profit margin."
+    tags:
+      - "Metrics"
+      - "Sales"
+      - "Finance"
 
-    
+  - name: "Gross Margin"
+    description: "The difference between revenue and cost of goods sold (COGS), divided by revenue. Gross margin is expressed as a percentage."
+    synonyms:
+      - "Gross Profit Margin"
+    calculations:
+      - name: "Standard Gross Margin"
+        formula: "(Revenue - COGS) / Revenue"
+        example_query:
+          - question: "Calculate the gross margin for each product"
+            query: |
+              SELECT
+                product_id,
+                (sum(revenue) - sum(cogs)) / sum(revenue) as gross_margin
+              FROM
+                sales
+              GROUP BY
+                product_id;
+    tags:
+      - "Finance"
+      - "Metrics"
+
+  - name: "Active User"
+    description: "A user who has shown some level of engagement with the product within a specific time frame (e.g., daily, weekly, monthly)."
+    synonyms:
+      - "Engaged User"
+    business_rules:
+      - "A user is considered active if they have logged in at least once in the last 7 days."
+      - "Actions that count as engagement include creating, editing, or deleting content."
+    example_query:
+      - question: "Show me the number of weekly active users"
+        query: |
+          SELECT
+            count(distinct user_id)
+          FROM
+            user_activity
+          WHERE
+            activity_date >= current_date - interval '7' day;
+    tags:
+      - "User Engagement"
+      - "Metrics"
