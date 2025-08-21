@@ -12,8 +12,8 @@ from drune.utils.exceptions import ConfigurationError, StepExecutionError, Valid
 
 # Import specific step implementations for testing
 from drune.engines.pandas.steps.reader import ReadStep as PandasReadStep
-from drune.engines.pandas.steps.transformer import TransformStep as PandasTransformStep
-from drune.engines.pandas.steps.validator import ValidateStep as PandasValidateStep
+from drune.engines.pandas.steps.steps import TransformStep as PandasTransformStep
+from drune.engines.pandas.constraints import ValidateStep as PandasValidateStep
 from drune.engines.pandas.steps.writer import WriteStep as PandasWriteStep
 
 from drune.engines.spark.steps.reader import ReadStep as SparkReadStep

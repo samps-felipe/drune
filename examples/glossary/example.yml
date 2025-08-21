@@ -1,0 +1,14 @@
+terms:
+  - name: teste
+    description: teste description
+    calculation: teste + outro / outro
+    tags: [finance, testing]
+    examples:
+      - question: alguma coisa
+        answer: alguma resposta
+  
+  - name: teste2
+    description: teste2 description
+    calculation: teste2
+
+    

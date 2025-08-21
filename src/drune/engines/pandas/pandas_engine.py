@@ -37,8 +37,27 @@ class PandasEngine(BaseEngine):
         """Executes a SQL query and returns the result."""
         raise NotImplementedError("PandasEngine does not support executing SQL queries.")
     
-    def write(self, data, path = None):
-        pass
+    def write(self, df, target_config):
+        self.logger.info("--- Step: Write (Pandas) ---")
+        
+        if not target_config:
+            raise ConfigurationError("'Target' configuration not found.")
+
+        filename = f"{target_config.name}.{target_config.format}"
+        output_file_path = os.path.join(target_config.path, filename)
+
+        os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
+
+        if target_config.format == 'csv':
+            df.to_csv(output_file_path, index=False)
+        elif target_config.format == 'json':
+            df.to_json(output_file_path, orient='records')
+        elif target_config.format == 'parquet':
+            df.to_parquet(output_file_path, index=False)
+        else:
+            raise NotImplementedError(f"Sink format '{target_config.format}' is not supported by the pandas engine.")
+        
+        return df
     
     def _apply_transformations(self, series: Any, transformations: List[str]) -> Any:
         """Applies a list of transformations to a pandas Series."""

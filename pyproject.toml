@@ -24,7 +24,8 @@ dependencies = [
 	"pyyaml",
 	"pydantic",
 	"pydantic-yaml",
-	"click"
+	"click",
+	"chromadb"
 ]
 [project.optional-dependencies]
 dev = [
@@ -46,6 +47,9 @@ pandas = [
 	]
 polars = [
 		"polars>=0.10.0"
+	]
+vanna = [
+		"vanna>=0.1.0"
 	]
 all = [
 		"drune[spark]",
