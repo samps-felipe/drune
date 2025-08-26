@@ -12,7 +12,11 @@ class DuckDBEngine(BaseEngine):
         self.name = 'duckdb'
         self.config = config
         self.logger = get_logger("engine:duckdb")
-        self.con = duckdb.connect(database=':memory:', read_only=False)
+
+        # TODO: especificar melhor onde salvar
+        # self.con = duckdb.connect(database=':memory:', read_only=False)
+
+        self.con = duckdb.connect(database='./duckdb_test.db', read_only=False)
 
     def read_file(self, source) -> Any:
         self.logger.info(f"Reading source: {source.name}")
@@ -31,7 +35,7 @@ class DuckDBEngine(BaseEngine):
 
     def execute_query(self, query: str) -> Any:
         self.logger.info(f"Executing query: {query}")
-        return self.con.execute(query)
+        return self.con.sql(query)
 
     def write(self, relation, target_config):
         self.logger.info("--- Step: Write (DuckDB) ---")
@@ -79,7 +83,7 @@ class DuckDBEngine(BaseEngine):
         query = f"SELECT {select_statement} FROM {temp_view_name}"
         
         self.logger.info(f"Applying schema with query: {query}")
-        return self.con.execute(query)
+        return self.con.sql(query)
 
     def _get_cast_expression(self, column_name: str, col_spec: ColumnSpec) -> str:
         target_type = col_spec.type.lower()

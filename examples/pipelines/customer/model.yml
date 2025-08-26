@@ -1,6 +1,6 @@
 pipeline:
   name: customer_pipeline
-  engine: pandas
+  engine: duckdb
   
   defaults:
     patterns:

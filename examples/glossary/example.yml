@@ -1,5 +1,6 @@
 concepts:
   - name: "Customer Lifetime Value (CLV)"
+    type: "metric"
     description: "A prediction of the net profit attributed to the entire future relationship with a customer."
     synonyms:
       - "CLV"
@@ -27,6 +28,7 @@ concepts:
       - "Finance"
 
   - name: "Gross Margin"
+    type: "metric"
     description: "The difference between revenue and cost of goods sold (COGS), divided by revenue. Gross margin is expressed as a percentage."
     synonyms:
       - "Gross Profit Margin"
@@ -48,12 +50,17 @@ concepts:
       - "Metrics"
 
   - name: "Active User"
+    type: "segment"
     description: "A user who has shown some level of engagement with the product within a specific time frame (e.g., daily, weekly, monthly)."
     synonyms:
       - "Engaged User"
-    business_rules:
-      - "A user is considered active if they have logged in at least once in the last 7 days."
-      - "Actions that count as engagement include creating, editing, or deleting content."
+    definition:
+      - name: "Login Activity"
+        description: "A user is considered active if they have logged in at least once in the last 7 days."
+        logic: "last_login_date >= current_date - interval '7' day"
+      - name: "Content Engagement"
+        description: "Actions that count as engagement include creating, editing, or deleting content."
+        logic: "action_type in ('create', 'edit', 'delete')"
     example_query:
       - question: "Show me the number of weekly active users"
         query: |
@@ -65,4 +72,16 @@ concepts:
             activity_date >= current_date - interval '7' day;
     tags:
       - "User Engagement"
-      - "Metrics"
+      - "Segmentation"
+
+  - name: "Premium Customer"
+    type: "segment"
+    description: "A customer segment for high-value customers, based on their CLV."
+    definition:
+      - name: "High CLV"
+        description: "A customer is considered premium if their CLV is greater than $10,000."
+        logic: "clv > 10000"
+    tags:
+      - "Sales"
+      - "Segmentation"
+      - "Marketing"

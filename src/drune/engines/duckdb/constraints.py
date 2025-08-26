@@ -42,7 +42,7 @@ class DuckDBConstraintRule(BaseConstraintRule):
         relation: duckdb.DuckDBPyRelation,
         condition: str,
     ) -> duckdb.DuckDBPyRelation:
-        return relation.select(f"*, ({condition}) AS \"{self.uuid}\"\"")
+        return relation.select(f'*, ({condition}) AS "{self.uuid}"')
 
 
 @register_constraint("duckdb", "not_null")
