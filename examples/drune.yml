@@ -15,6 +15,7 @@ profiles:
       user: dev_user
       password: "dev_password" # For a real project, use: "${DB_PASSWORD}"
       dbname: analytics_dev
+
   production:
     main_db:
       type: postgres
@@ -37,7 +38,7 @@ paths:
 # unless they are overridden locally.
 defaults:
   # Default processing engine for all pipelines
-  engine: pandas
+  engine: duckdb
 
   # Default transformations by data type (inherited by all models)
   type_defaults:

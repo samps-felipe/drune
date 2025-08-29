@@ -2,7 +2,7 @@ import os
 from typing import Any, Type, List
 import duckdb
 from drune.core.engine import BaseEngine, register_engine
-from drune.models import ProjectModel, ColumnSpec
+from drune.core.models import ProjectModel, ColumnSpec
 from drune.utils.logger import get_logger
 from drune.utils.exceptions import ConfigurationError
 

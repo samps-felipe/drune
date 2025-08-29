@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field, model_validator
 # Define reserved column names used by the framework
 RESERVED_COLUMN_NAMES = ["id"]
 
-
 # Pipeline Section
 class TypeDafault(BaseModel):
     """Default type transformation settings."""
@@ -39,7 +38,7 @@ class ColumnSpec(BaseModel):
     description: Optional[str] = Field(None, description="Description of the column.")
     type: str = Field(..., description="Data type of the column.")
     optional: Optional[bool] = Field(False, description="If True, the source column can be missing.")
-    transform: Optional[List[str]] = Field(None, description="List of transformations to apply to the column in format 'func:arg1,arg2,...'.")
+    transform: Optional[str] = Field(None, description="List of transformations to apply to the column in format 'func:arg1,arg2,...'.")
     constraints: List[ConstraintSpec] = Field([], description="List of constraints to apply to the column.")
     format: Optional[str] = None
     try_cast: bool = False

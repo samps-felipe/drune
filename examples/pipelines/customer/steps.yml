@@ -1,6 +1,7 @@
 steps:
   - name: name_for_log_purpose
     type: transform
+
   - name: name_for_log_purpose_2
     type: validate
 

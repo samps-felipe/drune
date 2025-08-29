@@ -216,8 +216,8 @@ You can register your own custom validation rules to be used in your YAML config
 
 ```python
 # In your project's custom code (e.g., my_custom_rules.py)
-from declarative_data_framework.core.quality import register_rule
-from declarative_data_framework.models.pydantic_models import Column
+from drune.core.quality import register_rule
+from drune.models.pydantic_models import Column
 
 class MyCustomValidation:
     def __init__(self, params: dict = None):
@@ -249,12 +249,12 @@ To make your custom rules available, ensure your application imports the file wh
 
 ### Adding Custom Steps/Transformations
 
-For engines like Spark or Pandas, you can extend their capabilities by adding new transformation logic. This typically involves modifying the respective engine's step handlers (e.g., `src/declarative_data_framework/engines/spark/steps/transformer.py` or `src/declarative_data_framework/engines/pandas/steps/transformer.py`).
+For engines like Spark or Pandas, you can extend their capabilities by adding new transformation logic. This typically involves modifying the respective engine's step handlers (e.g., `src/drune/engines/spark/steps/transformer.py` or `src/drune/engines/pandas/steps/transformer.py`).
 
 ### Adding New Engines
 
-The framework's abstract `BaseEngine` class (`src/declarative_data_framework/core/engine.py`) provides a contract for integrating new data processing engines. To add a new engine, you would:
-1.  Create a new module under `src/declarative_data_framework/engines/` (e.g., `src/declarative_data_framework/engines/my_new_engine/`).
+The framework's abstract `BaseEngine` class (`src/drune/core/engine.py`) provides a contract for integrating new data processing engines. To add a new engine, you would:
+1.  Create a new module under `src/drune/engines/` (e.g., `src/drune/engines/my_new_engine/`).
 2.  Implement a class that inherits from `BaseEngine` and implements all its abstract methods.
 3.  Register your new engine using the `@register_engine` decorator.
 
