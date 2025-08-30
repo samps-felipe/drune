@@ -1,14 +1,13 @@
 pipeline:
   name: customer_pipeline
-  engine: duckdb
-  
+
   defaults:
     patterns:
       rename: snake_case
       email: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
   types: 
       - type: str
-        transform: ["trim", "upper"]
+        transform: trim|upper
       - type: int
         try_cast: true
       - type: float
@@ -18,10 +17,10 @@ pipeline:
         format: "yyyy-MM-dd"
 
 sources:
-  - name: customer_input
+  - name: customer_file
     type: file
     format: csv
-    path: "C:/Users/felipe.sampaio_visag/Documents/git/drune/examples/data/"
+    path: "C:/Users/felipe.sampaio_visag/Documents/repos/drune/examples/data/"
     options:
       header: 0
       delimiter: ","
@@ -30,27 +29,36 @@ sources:
     schema:
       columns:
         - name: customer_id
-          rename: cd
+          rename: cd_customer
+          description: Identifies the customer
           type: int
           constraints: 
             - rule: "not_null"
-              on_fail: "fail"
+              on_fail: "warn"
             - rule: "unique"
               on_fail: "drop"
         - name: first_name
+          rename: nm_first_name
           type: str
-          transform: "trim:upper"
+          transform: trim|upper
         - name: last_name
+          rename: nm_last_name
           type: str
+          transform: trim|upper
         - name: email
+          rename: ds_email
           type: str
+          transform: trim|lower
           optional: true
           constraints:
-            - rule: "pattern:'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'"
-              on_fail: "drop"
+            - rule: pattern:'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'
+              on_fail: set_null
         - name: document
-          rename: doc
+          rename: nu_document
           type: str
+        # - name: ds_login
+        #   type: str
+        #   transform: regex:email,^[^@]+
 
 target:
   name: dm_customer
@@ -65,7 +73,7 @@ target:
     partition_by: []
 
     inherits:
-      - from: customer_input
+      - from: customer_file
         exclude: [document]
     
     columns:

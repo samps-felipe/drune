@@ -1,6 +1,6 @@
 from pyspark.sql import DataFrame
 from delta.tables import DeltaTable
-from ....core.step import BaseStep, register_step
+from ....core.steps.step import BaseStep, register_step
 
 @register_step('write')
 class WriterStep(BaseStep):

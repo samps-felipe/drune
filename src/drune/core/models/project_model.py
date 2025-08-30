@@ -43,12 +43,18 @@ class Profile(BaseModel):
     password: str
     dbname: str
 
+class EngineConfig(BaseModel):
+    """Engine configuration, allowing for a default engine and specific overrides."""
+    name: str 
+    options: Dict[str, Any] = Field(default_factory=dict)
+
 # Main model for the drune.yml project file
 class ProjectModel(BaseModel):
     """Pydantic model for the drune.yml project configuration file."""
     project_name: str
     description: Optional[str] = None
     version: Optional[str] = None
+    engine: EngineConfig = Field(default_factory=EngineConfig)
     profiles: Dict[str, Dict[str, Profile]] = Field(default_factory=dict)
     paths: Paths = Field(default_factory=Paths)
     defaults: GlobalDefaults = Field(default_factory=GlobalDefaults)

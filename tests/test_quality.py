@@ -4,7 +4,7 @@ import pandas as pd
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
-from drune.core.quality import BaseValidation, BaseTableValidation, register_rule, get_validationrule
+from drune.core.quality.constraint import BaseValidation, BaseTableValidation, register_rule, get_validationrule
 
 # Pandas Rules
 from drune.engines.pandas.quality.rules import NotNullValidation as PandasNotNullValidation

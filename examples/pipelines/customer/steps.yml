@@ -1,7 +1,8 @@
 steps:
-  - name: name_for_log_purpose
-    type: transform
+  - name: filtro_de_dados
+    type: filter
+    params:
+      where: nm_first_name='JOHN'
 
   - name: name_for_log_purpose_2
     type: validate
-

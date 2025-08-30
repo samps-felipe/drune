@@ -4,8 +4,8 @@ import pandas as pd
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
-from drune.core.step import BaseStep, register_step, get_step
-from drune.core.engine import BaseEngine
+from drune.core.steps.step import BaseStep, register_step, get_step
+from drune.core.engine.engine import BaseEngine
 from drune.models.pydantic_models import PipelineConfig, SourceConfig, SinkConfig, ColumnSpec, DefaultsConfig, ValidationRuleConfig, TestConfig, ExpectedResultsDataConfig, SourceDataConfig, TransformationStepConfig
 
 from drune.utils.exceptions import ConfigurationError, StepExecutionError, ValidationError

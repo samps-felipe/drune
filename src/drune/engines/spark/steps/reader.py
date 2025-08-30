@@ -1,5 +1,5 @@
 from pyspark.sql import DataFrame
-from ....core.step import BaseStep, register_step
+from ....core.steps.step import BaseStep, register_step
 from ....utils.exceptions import ConfigurationError, StepExecutionError
 
 @register_step('read')

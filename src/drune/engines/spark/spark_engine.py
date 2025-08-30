@@ -1,7 +1,7 @@
 import re
 from typing import Type
-from drune.core.engine import BaseEngine, register_engine
-from drune.core.step import get_step
+from drune.core.engine.engine import BaseEngine, register_engine
+from drune.core.steps.step import get_step
 from drune.models import PipelineModel
 from drune.utils.logger import get_logger
 

@@ -6,7 +6,7 @@ import yaml
 from drune.cli import cli, _load_and_validate_config, get_engine
 from drune.models.pydantic_models import PipelineConfig
 from drune.core.pipeline import Pipeline
-from drune.core.engine import BaseEngine
+from drune.core.engine.engine import BaseEngine
 
 # Fixture for CliRunner
 @pytest.fixture

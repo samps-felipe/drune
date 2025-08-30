@@ -1,6 +1,6 @@
 from pyspark.sql import DataFrame, Column
 from pyspark.sql.functions import col, expr, sha2, concat_ws, current_timestamp
-from ....core.step import BaseStep, register_step
+from ....core.steps.step import BaseStep, register_step
 from ....models.pydantic_models import ColumnSpec
 from ....utils.exceptions import ConfigurationError
 import re

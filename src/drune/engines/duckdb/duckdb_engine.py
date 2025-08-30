@@ -1,22 +1,22 @@
+from ast import Dict
 import os
 from typing import Any, Type, List
 import duckdb
-from drune.core.engine import BaseEngine, register_engine
-from drune.core.models import ProjectModel, ColumnSpec
+from drune.core.engine import BaseEngine
+from drune.core.models import ColumnSpec
 from drune.utils.logger import get_logger
 from drune.utils.exceptions import ConfigurationError
+from drune.utils.parsers import parse_function_string
 
-@register_engine('duckdb')
+from drune.core.engine import EngineManager
+
+@EngineManager.register("duckdb")
 class DuckDBEngine(BaseEngine):
-    def __init__(self, config: ProjectModel):
+    def __init__(self, database: str = ':memory:', read_only: bool = False):
         self.name = 'duckdb'
-        self.config = config
         self.logger = get_logger("engine:duckdb")
 
-        # TODO: especificar melhor onde salvar
-        # self.con = duckdb.connect(database=':memory:', read_only=False)
-
-        self.con = duckdb.connect(database='./duckdb_test.db', read_only=False)
+        self.con = duckdb.connect(database=database, read_only=read_only)
 
     def read_file(self, source) -> Any:
         self.logger.info(f"Reading source: {source.name}")
@@ -56,6 +56,9 @@ class DuckDBEngine(BaseEngine):
         else:
             raise NotImplementedError(f"Sink format '{target_config.format}' is not supported by the duckdb engine.")
 
+    def rollback(self, target):
+        return super().rollback(target)
+
     def apply_schema(self, relation, schema) -> Any:
         if not schema or not schema.columns:
             self.logger.info("No schema or columns to apply.")
@@ -75,7 +78,9 @@ class DuckDBEngine(BaseEngine):
             cast_expression = self._get_cast_expression(source_col_name, col_spec)
 
             # Transformations
-            transformed_expression = self._apply_transformations(cast_expression, col_spec.transform)
+            transforms = parse_function_string(col_spec.transform) if col_spec.transform else []
+
+            transformed_expression = self._apply_transformations(cast_expression, transforms)
 
             select_clauses.append(f"{transformed_expression} AS {final_col_name}")
 
@@ -108,17 +113,17 @@ class DuckDBEngine(BaseEngine):
         else:
             return f"CAST(\"{column_name}\" AS {duckdb_type})"
 
-    def _apply_transformations(self, column_expression: str, transformations: List[str]) -> str:
-        if not transformations:
+    def _apply_transformations(self, column_expression: str, transfoms: List[str]) -> str:
+        if not transfoms:
             return column_expression
 
         expression = column_expression
-        for transform in transformations:
-            if transform == 'trim':
+        for transform in transfoms:
+            if transform['function'] == 'trim':
                 expression = f"trim({expression})"
-            elif transform == 'upper':
+            elif transform['function'] == 'upper':
                 expression = f"upper({expression})"
-            elif transform == 'lower':
+            elif transform['function'] == 'lower':
                 expression = f"lower({expression})"
             else:
                 self.logger.warning(f"Transformation '{transform}' not supported. Skipping.")

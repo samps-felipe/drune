@@ -6,8 +6,14 @@ version: "1.0.0"
 # 2. Connection Profiles (Optional, but recommended)
 # Centralizes connection settings for different environments (e.g., dev, prod).
 # In production, passwords should be injected via environment variables.
+
+engine:
+  name: duckdb
+  options:
+    database: 'duckdb_test_v2.db'
+    
 profiles:
-  development:
+  dev:
     main_db:
       type: postgres
       host: localhost
@@ -16,7 +22,7 @@ profiles:
       password: "dev_password" # For a real project, use: "${DB_PASSWORD}"
       dbname: analytics_dev
 
-  production:
+  prd:
     main_db:
       type: postgres
       host: prod.db.example.com

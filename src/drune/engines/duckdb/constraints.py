@@ -1,10 +1,11 @@
 from typing import Any, Dict, Tuple
 import duckdb
-from drune.core.quality import BaseConstraintRule, register_constraint
+from drune.core.quality import BaseConstraint
+from drune.core.quality import DataQualityManager
 import datetime
 
 
-class DuckDBConstraintRule(BaseConstraintRule):
+class DuckDBConstraintRule(BaseConstraint):
     """Base class for all column constraints in DuckDB."""
 
     def _get_fail_relation(self, relation: duckdb.DuckDBPyRelation) -> duckdb.DuckDBPyRelation:
@@ -36,6 +37,17 @@ class DuckDBConstraintRule(BaseConstraintRule):
                 f"{len(fail_relation)} warning values in column '{self.column}'"
             )
         return relation, fail_relation
+    
+    def set_null(
+            self,
+        relation: duckdb.DuckDBPyRelation,
+    ) -> Tuple[duckdb.DuckDBPyRelation, duckdb.DuckDBPyRelation]:
+        fail_relation = self._get_fail_relation(relation)
+        self.logger.warning(f"{len(fail_relation)} set null values in column '{self.column}'")
+        self.logger.error('Set null not implemented for DuckDB')
+
+        return relation, fail_relation
+
 
     def _apply_constraint(
         self,
@@ -45,7 +57,7 @@ class DuckDBConstraintRule(BaseConstraintRule):
         return relation.select(f'*, ({condition}) AS "{self.uuid}"')
 
 
-@register_constraint("duckdb", "not_null")
+@DataQualityManager.register("duckdb", "not_null")
 class NotNullConstraint(DuckDBConstraintRule):
     def apply(
         self,
@@ -57,7 +69,7 @@ class NotNullConstraint(DuckDBConstraintRule):
         return self._apply_constraint(relation, condition)
 
 
-@register_constraint("duckdb", "unique")
+@DataQualityManager.register("duckdb", "unique")
 class UniqueConstraint(DuckDBConstraintRule):
     def apply(
         self,
@@ -69,7 +81,7 @@ class UniqueConstraint(DuckDBConstraintRule):
         return self._apply_constraint(relation, condition)
 
 
-@register_constraint("duckdb", "isin")
+@DataQualityManager.register("duckdb", "isin")
 class IsInConstraint(DuckDBConstraintRule):
     def apply(
         self,
@@ -83,7 +95,7 @@ class IsInConstraint(DuckDBConstraintRule):
         return self._apply_constraint(relation, condition)
 
 
-@register_constraint("duckdb", "pattern")
+@DataQualityManager.register("duckdb", "pattern")
 class PatternConstraint(DuckDBConstraintRule):
     def apply(
         self,

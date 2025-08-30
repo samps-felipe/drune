@@ -1,7 +1,7 @@
 from typing import Dict, List
 import pandas as pd
-from drune.core.state import PipelineState
-from drune.core.step import BaseStep, register_step
+from drune.core.pipeline_state import PipelineState
+from drune.core.steps.step import BaseStep, register_step
 
 try:
     import duckdb

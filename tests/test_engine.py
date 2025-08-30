@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from pyspark.sql import SparkSession, DataFrame
-from drune.core.engine import BaseEngine, register_engine, get_engine
+from drune.core.engine.engine import BaseEngine, register_engine, get_engine
 from drune.models.pydantic_models import PipelineConfig, SourceConfig, SinkConfig, ColumnSpec, DefaultsConfig
 from drune.engines.spark.spark_engine import SparkEngine
 from drune.engines.pandas.pandas_engine import PandasEngine

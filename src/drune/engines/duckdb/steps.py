@@ -1,21 +1,21 @@
-from typing import Dict
+from typing import Any, Dict
 import duckdb
-from drune.core.state import PipelineState
-from drune.core.step import BaseStep, register_step
+from drune.core.steps import BaseStep
+from drune.core.steps import StepManager
 
-@register_step('transform')
+@StepManager.register('duckdb', 'transform')
 class TransformStep(BaseStep):
-    def execute(self, pipeline_state: PipelineState, params: Dict[str, any] = None) -> PipelineState:
+    def execute(self, sources, target, columns: Dict[str, any]) -> Any:
         self.logger.info("--- Step: Transform (DuckDB) ---")
         
-        if len(pipeline_state.sources) != 1:
+        if len(sources) != 1:
             raise ValueError("Transform step requires exactly one source.")
 
-        source_name = list(pipeline_state.sources.keys())[0]
-        relation = pipeline_state.sources[source_name]
+        source_name = list(sources.keys())[0]
+        relation = sources[source_name]
 
         select_expressions = []
-        for spec in self.config.columns:
+        for spec in columns:
             final_name = spec.rename or spec.name
             if spec.transform:
                 select_expressions.append(f"{spec.transform} AS \"{final_name}\"")
@@ -24,29 +24,27 @@ class TransformStep(BaseStep):
 
         query = f"SELECT {', '.join(select_expressions)} FROM {source_name}"
         
-        pipeline_state.target = relation.query(source_name, query)
+        target = relation.query(source_name, query)
         self.logger.info("Transform step completed successfully.")
-        return pipeline_state
+        return target
 
-@register_step('filter')
+@StepManager.register('duckdb', 'filter')
 class FilterStep(BaseStep):
-    def execute(self, pipeline_state: PipelineState, params: Dict[str, any] = None) -> PipelineState:
+    def execute(self, sources, target, where: str):
         self.logger.info("--- Step: Filter (DuckDB) ---")
-        if not hasattr(self.config, "where"):
-            raise ValueError("Filter step requires a 'where' clause in the configuration.")
 
-        relation = pipeline_state.target
-        relation = relation.filter(self.config.where)
-        pipeline_state.target = relation
+        relation = target
+        relation = relation.filter(where)
+        target = relation
         self.logger.info("Filter step completed successfully.")
-        return pipeline_state
+        return target
 
-@register_step('join')
+@StepManager.register('duckdb', 'join')
 class JoinStep(BaseStep):
-    def execute(self, pipeline_state: PipelineState, params: Dict[str, any] = None) -> PipelineState:
+    def execute(self,sources, target):
         self.logger.info("--- Step: Join (DuckDB) ---")
         
-        if not hasattr(self.config, "sources") or len(self.config.sources) < 2:
+        if not len(self.config.sources) < 2:
             raise ValueError("Join step requires at least two sources.")
 
         if not hasattr(self.config, "on"):
@@ -71,46 +69,35 @@ class JoinStep(BaseStep):
         for source_name in self.config.sources:
             pipeline_state.sources[source_name].create_view(source_name, replace=True)
 
-        pipeline_state.target = base_relation.connection.execute(query)
+        target = base_relation.connection.execute(query)
         self.logger.info("Join step completed successfully.")
-        return pipeline_state
+        return target
 
-@register_step('sql')
+@StepManager.register('duckdb', 'sql')
 class SQLStep(BaseStep):
-    def execute(self, pipeline_state: PipelineState, params: Dict[str, any] = None) -> PipelineState:
+    def execute(self, sources, target, query: str):
         self.logger.info("--- Step: SQL (DuckDB) ---")
-        if not hasattr(self.config, "query"):
-            raise ValueError("SQL step requires a 'query' in the configuration.")
 
         # Create views for all sources
-        for name, relation in pipeline_state.sources.items():
+        for name, relation in sources.items():
             relation.create_view(name, replace=True)
 
-        result_relation = pipeline_state.sources[list(pipeline_state.sources.keys())[0]].connection.execute(self.config.query)
-        pipeline_state.target = result_relation
+        result_relation = sources[list(sources.keys())[0]].connection.execute(query)
+        target = result_relation
         self.logger.info("SQL step completed successfully.")
-        return pipeline_state
+        return target
 
-@register_step('pivot')
-class PivotStep(BaseStep):
-    def execute(self, pipeline_state: PipelineState, params: Dict[str, any] = None) -> PipelineState:
-        self.logger.info("--- Step: Pivot (DuckDB) ---")
+# @StepManager.register('duckdb', 'pivot')
+# class PivotStep(BaseStep):
+#     def execute(self, pipeline_state: PipelineState, index: str, columns: str, values: str, agg_func: str = 'first') -> PipelineState:
+#         self.logger.info("--- Step: Pivot (DuckDB) ---")
+
+#         relation = pipeline_state.target
+#         temp_view_name = "temp_view_for_pivot"
+#         relation.create_view(temp_view_name, replace=True)
         
-        if not hasattr(self.config, "index"):
-            raise ValueError("Pivot step requires 'index' in the configuration.")
-        if not hasattr(self.config, "columns"):
-            raise ValueError("Pivot step requires 'columns' in the configuration.")
-        if not hasattr(self.config, "values"):
-            raise ValueError("Pivot step requires 'values' in the configuration.")
+#         query = f"PIVOT {temp_view_name} ON \"{columns}\" USING {agg_func}(\"{values}\") GROUP BY \"{index}\""
 
-        relation = pipeline_state.target
-        temp_view_name = "temp_view_for_pivot"
-        relation.create_view(temp_view_name, replace=True)
-
-        agg_func = getattr(self.config, "aggfunc", "first")
-        
-        query = f"PIVOT {temp_view_name} ON \"{self.config.columns}\" USING {agg_func}(\"{self.config.values}\") GROUP BY \"{self.config.index}\""
-
-        pipeline_state.target = relation.connection.execute(f"SELECT * FROM ({query})")
-        self.logger.info("Pivot step completed successfully.")
-        return pipeline_state
+#         pipeline_state.target = relation.connection.execute(f"SELECT * FROM ({query})")
+#         self.logger.info("Pivot step completed successfully.")
+#         return pipeline_state

@@ -21,7 +21,7 @@ class PipelineSpec(BaseModel):
     """Base class for pipeline specifications."""
     name: str
     description: Optional[str] = None
-    engine: str = Field(..., description="Name of the engine to use for processing.")
+    # engine: str = Field(..., description="Name of the engine to use for processing.")
     metadata: Optional[str] = None
     defaults: Optional[PipelineDefaults] = None
 
@@ -29,7 +29,7 @@ class PipelineSpec(BaseModel):
 class ConstraintSpec(BaseModel):
     """Defines a constraint to be applied to a column."""
     rule: str = Field(..., description="The rule to apply, e.g., 'not_null', 'unique', 'pattern:regex'.")
-    on_fail: Literal['fail', 'drop', 'warn'] = 'fail'  # Action to take if the constraint fails
+    on_fail: Literal['fail', 'drop', 'warn', 'set_null'] = 'fail'  # Action to take if the constraint fails
 
 class ColumnSpec(BaseModel):
     """Specification for a single column in a pipeline."""

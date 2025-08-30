@@ -1,6 +1,6 @@
 # Testes para validações genéricas
 import pytest
-from drune.core.quality import BaseValidation, register_rule, get_validationrule
+from drune.core.quality.constraint import BaseValidation, register_rule, get_validationrule
 
 def test_register_and_get_rule():
     class DummyRule(BaseValidation):

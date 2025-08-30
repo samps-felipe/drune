@@ -1,6 +1,6 @@
 from pyspark.sql import DataFrame, functions as F
-from ....core.step import BaseStep, register_step
-from ....core.quality import get_validationrule
+from ....core.steps.step import BaseStep, register_step
+from ....core.quality.constraint import get_validationrule
 from ....utils.exceptions import ValidationError, ConfigurationError
 
 @register_step('validate')

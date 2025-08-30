@@ -1,6 +1,6 @@
 from typing import Any, Dict, Tuple
 import pandas as pd
-from drune.core.quality import BaseConstraintRule, register_constraint
+from drune.core.quality.constraint import BaseConstraintRule, register_constraint
 import datetime
 
 
