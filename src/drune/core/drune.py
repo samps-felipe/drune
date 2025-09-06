@@ -1,6 +1,8 @@
 from pathlib import Path
 import yaml
 
+from drune.utils.logger import get_logger
+
 from .models import ProjectModel
 from .engine import EngineManager
 from .pipeline import Pipeline
@@ -13,23 +15,24 @@ class Drune:
     factory for pipelines within the project.
     """
 
-    def __init__(self, project_config_path: str = '.'):
+    def __init__(self, project_config_path: str = '.', profile: str = None):
 
-        # Se project_config_path for um diretório procure por drune.yml ou drune.yaml neste diretorio caso contrário
+        self._load_project_config(project_config_path, profile)
+        self.logger = get_logger(f"project[{self.project_config.project_name}]")
 
-        self._load_project_config(project_config_path)
         self._load_engine()
 
         self.pipeline = Pipeline(self.project_dir, self.project_config, self.engine)
 
     def _load_engine(self):
         """Lazily initializes and returns the configured engine."""
-        engine_name = self.project_config.engine.name
-        engine_options = self.project_config.engine.options
+        self.logger.info(f"Loading engine: {self.project_config.defaults.engine.name}")
+        engine_name = self.project_config.defaults.engine.name
+        engine_options = self.project_config.defaults.engine.options
 
         self.engine = EngineManager.get_engine(engine_name, engine_options)
     
-    def _load_project_config(self, path: str):
+    def _load_project_config(self, path: str, profile: str):
         """Loads a project configuration from a YAML file."""
 
         project_config_file = Path(path).resolve()
@@ -49,5 +52,9 @@ class Drune:
         
         with open(project_config_file, 'r') as file:
             yml_dict = yaml.safe_load(file)
+
+        project_config = ProjectModel(**yml_dict)
+
+        project_config.merge_defaults(profile)
         
-        self.project_config = ProjectModel(**yml_dict)
+        self.project_config = project_config

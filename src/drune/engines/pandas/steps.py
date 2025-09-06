@@ -30,7 +30,7 @@ class TransformStep(BaseStep):
 
         # Apply column renaming
         rename_map = {
-            spec.name: spec.rename
+            spec.old_name: spec.name
             for spec in self.config.columns
             if spec.name and spec.rename and spec.name in df.columns
         }

@@ -1,29 +1,20 @@
+from pyexpat import model
 from typing import List, Optional, Dict, Any, Literal
+from click import Option
 from pydantic import BaseModel, Field, model_validator
+
+from .defaults_model import TypeDefault
+
 
 # Define reserved column names used by the framework
 RESERVED_COLUMN_NAMES = ["id"]
 
-# Pipeline Section
-class TypeDafault(BaseModel):
-    """Default type transformation settings."""
-    type: str
-    format: Optional[str] = None
-    try_cast: bool = False
-    transform: List[str] = []
-
 class PipelineDefaults(BaseModel):
     """Default settings for the pipeline."""
-    patterns: Dict[str, str] = {}
-    types: List[TypeDafault] = []
+    # patterns: Dict[str, str] = {}
+    types: Dict[str, TypeDefault] = None
+    vars: Dict[str, Any] = {}
 
-class PipelineSpec(BaseModel):
-    """Base class for pipeline specifications."""
-    name: str
-    description: Optional[str] = None
-    # engine: str = Field(..., description="Name of the engine to use for processing.")
-    metadata: Optional[str] = None
-    defaults: Optional[PipelineDefaults] = None
 
 # Column Section
 class ConstraintSpec(BaseModel):
@@ -33,8 +24,8 @@ class ConstraintSpec(BaseModel):
 
 class ColumnSpec(BaseModel):
     """Specification for a single column in a pipeline."""
-    name: Optional[str] = Field(None, description="Original column name in the source.")
-    rename: Optional[str] = Field(None, description="New name for the column after processing.")
+    name: str = Field(None, description="Column name used for renaming.")
+    old_name: Optional[str] = Field(None, description="Original name of the column before renaming.", alias='from')
     description: Optional[str] = Field(None, description="Description of the column.")
     type: str = Field(..., description="Data type of the column.")
     optional: Optional[bool] = Field(False, description="If True, the source column can be missing.")
@@ -43,26 +34,18 @@ class ColumnSpec(BaseModel):
     format: Optional[str] = None
     try_cast: bool = False
 
-
-    @model_validator(mode="before")
-    def set_name_or_rename(cls, values):
-        """Ensures that either 'name' or 'rename' is present."""
-
-        name = values.get('name')
-        rename = values.get('rename')
-        if name is None and rename is None:
-            raise ValueError("Each column must have either a 'name' or 'rename' field.")
-        if name is None:
-            values['name'] = rename
-        elif rename is None:
-            values['rename'] = name
-        return values
-
+    @model_validator(mode="after")
+    def set_old_name_from_name(self):
+        """If 'name' is not provided, use 'old_name' as 'name'."""
+        if self.old_name is None:
+            self.old_name = self.name
+        return self
+        
 
     @model_validator(mode="after")
-    def check_reserved_names(cls, values):
+    def check_reserved_names(self):
         """Validates that the final column name is not a reserved name."""
-        final_name = getattr(values, 'rename', None) or getattr(values, 'name', None)
+        final_name = self.name
 
         if final_name.lower() in RESERVED_COLUMN_NAMES:
             raise ValueError(
@@ -76,7 +59,33 @@ class ColumnSpec(BaseModel):
                 f"Found: '{final_name}'"
             )
         
-        return values
+        return self
+
+# Source Section
+class SourceSchemaSpec(BaseModel):
+    """Schema specification for the source table."""
+    primary_key: List[str] = Field([], description="List of primary key columns.")
+    columns: List[ColumnSpec] = Field([], description="List of columns in the schema.")
+
+class SourceSpec(BaseModel):
+    """Configuration for the data source."""
+    name: str = Field(..., description="Name of the source.")
+    type: Literal['file', 'sql', 'table'] = Field(..., description="Type of the source, e.g., 'file', 'query', 'table'.")
+    format: str = Field(..., description="Input format, e.g., 'delta', 'parquet'.")
+    path: Optional[str] = ""
+    table_name: Optional[str] = None
+    query: Optional[str] = None
+    options: Dict[str, Any] = {}
+    
+    schema_spec: Optional[SourceSchemaSpec] = Field(None, description="Schema specification for the source table.", alias='schema')
+
+    @model_validator(mode="after")
+    def check_source_type_fields(self):
+        if self.type == 'table' and not self.table_name:
+            raise ValueError("For source type 'table', 'table_name' must be specified.")
+        if self.type == 'sql' and not self.query:
+            raise ValueError("For source type 'sql', 'query' must be specified.")
+        return self
 
 # Target Section
 class InheritsSpec(BaseModel):
@@ -102,11 +111,10 @@ class TargetSpec(BaseModel):
     """Configuration for the data target."""
     name: str = Field(..., description="Name of the target table.")
     description: Optional[str] = None
-    type: Literal['file', 'query', 'table'] = Field(..., description="Type of the target, e.g., 'file', 'query', 'table'.")
+    type: Literal['file', 'table'] = Field(..., description="Type of the target, e.g., 'file', 'query', 'table'.")
     format: str = Field(..., description="Output format, e.g., 'delta', 'parquet'.")
     path: Optional[str] = None
     table: Optional[str] = None
-    query: Optional[str] = None
     mode: Literal[
         'append', 
         'overwrite', 
@@ -119,22 +127,6 @@ class TargetSpec(BaseModel):
 
     schema_spec: TargetSchemaSpec = Field(..., description="Schema specification for the target table.", alias='schema')
 
-# Source Section
-class SourceSchemaSpec(BaseModel):
-    """Schema specification for the source table."""
-    primary_key: List[str] = Field([], description="List of primary key columns.")
-    columns: List[ColumnSpec] = Field([], description="List of columns in the schema.")
-class SourceSpec(BaseModel):
-    """Configuration for the data source."""
-    name: str = Field(..., description="Name of the source.")
-    type: Literal['file', 'query', 'table'] = Field(..., description="Type of the source, e.g., 'file', 'query', 'table'.")
-    format: str = Field(..., description="Input format, e.g., 'delta', 'parquet'.")
-    path: Optional[str] = None
-    table: Optional[str] = None
-    query: Optional[str] = None
-    options: Dict[str, Any] = {}
-    
-    schema_spec: Optional[SourceSchemaSpec] = Field(None, description="Schema specification for the source table.", alias='schema')
 
 class StepConfig(BaseModel):
     """Configuration for a generic pipeline step."""
@@ -145,7 +137,76 @@ class StepConfig(BaseModel):
 
 class PipelineModel(BaseModel):
     """Main configuration model for a pipeline."""
-    pipeline: PipelineSpec
-    target: TargetSpec
+    pipeline_name: str = Field(..., description="Name of the pipeline.")
+    description: Optional[str] = None
+    defaults: Optional[PipelineDefaults] = Field(..., description="Default settings for the pipeline.")
     sources: List[SourceSpec] = Field(..., description="List of data sources for the pipeline.")
+    target: TargetSpec
     steps: Optional[List[StepConfig]] = Field([], description="List of pipeline steps.")
+
+    def _apply_type_defaults_to_column(self, column: ColumnSpec, type_defaults: Dict[str, TypeDefault]):
+        """Dynamically applies default values from a type default to a column."""
+        if column.type in type_defaults:
+            default_config = type_defaults[column.type]
+            # Iterate over the fields of the default config model, excluding unset values
+            for field_name, default_value in default_config.model_dump(exclude_unset=True).items():
+                # Get the current value on the column
+                current_value = getattr(column, field_name, None)
+                # Apply default only if the current value is not set (is None, False, or empty list/dict)
+                if not current_value and default_value is not None:
+                    setattr(column, field_name, default_value)
+
+    @model_validator(mode="after")
+    def merge_target_with_sources_schema(self):
+        if self.target.schema_spec.inherits:
+            for inherit_spec in self.target.schema_spec.inherits:
+                source_name_to_inherit = inherit_spec.from_name
+                
+                # Find the corresponding source
+                source_to_inherit_from = next(
+                    (s for s in self.sources if s.name == source_name_to_inherit),
+                    None
+                )
+
+                if source_to_inherit_from and source_to_inherit_from.schema_spec:
+                    inherited_columns = []
+                    for col in source_to_inherit_from.schema_spec.columns:
+                        # Apply include/exclude logic
+                        if inherit_spec.columns and col.name not in inherit_spec.columns:
+                            continue
+                        if inherit_spec.exclude and col.name in inherit_spec.exclude:
+                            continue
+                        inherited_columns.append(col)
+                    
+                    # Merge inherited columns with existing target columns,
+                    # giving precedence to explicitly defined target columns
+                    existing_target_column_names = {c.name for c in self.target.schema_spec.columns}
+                    for inherited_col in inherited_columns:
+                        if inherited_col.name not in existing_target_column_names:
+                            self.target.schema_spec.columns.append(inherited_col)
+        return self
+
+    @model_validator(mode="after")
+    def merge_defaults_with_pipeline_config(self):
+        """
+        Merges pipeline-level defaults into source and target configurations.
+        This method is called after the model is validated.
+        """
+        # This validator handles defaults defined inside the pipeline file.
+        # Project-level defaults should be merged before this model is even instantiated.
+        if not self.defaults or not self.defaults.types:
+            return self
+
+        # Collect all columns from sources and the target
+        all_columns = []
+        for source in self.sources:
+            if source.schema_spec and source.schema_spec.columns:
+                all_columns.extend(source.schema_spec.columns)
+        if self.target and self.target.schema_spec and self.target.schema_spec.columns:
+            all_columns.extend(self.target.schema_spec.columns)
+
+        # Apply the type defaults to each column
+        for column in all_columns:
+            self._apply_type_defaults_to_column(column, self.defaults.types)
+
+        return self

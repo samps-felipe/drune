@@ -30,7 +30,7 @@ class DataQualityManager:
         return decorator
     
     @classmethod
-    def get_constraint(cls, engine: str, name: str, params: Dict = {}) -> Type[BaseConstraint]:
+    def get_constraint(cls, engine: str, name: str) -> Type[BaseConstraint]:
         """Retrieves a constraint class by its name."""
         if engine not in cls._constraints:
             raise NotImplementedError(f"Engine '{engine}' not found in registry.")
@@ -42,10 +42,7 @@ class DataQualityManager:
                 f"Constraint '{name}' not found for engine '{engine}'."
                 f"Available constraints: {list(cls._constraints[engine].keys())}")
         
-        if 'name' not in params:
-            params['name'] = name
-        
-        return constraint_class(**params)
+        return constraint_class(name)
 
 
     def __init__(self, engine: BaseEngine, project_dir, log_path):
@@ -79,12 +76,11 @@ class DataQualityManager:
         results = {
             'fail': [],
             'warn': [],
-            'drop': [],
-            'set_null': []
+            'drop': []
         }
 
         for column_spec in schema.columns:
-            col_name = column_spec.rename
+            col_name = column_spec.name
 
             for constraint in column_spec.constraints:
                 func_list = parse_function_string(constraint.rule)

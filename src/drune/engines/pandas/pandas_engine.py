@@ -136,8 +136,8 @@ class PandasEngine(BaseEngine):
         final_cols = []
 
         for col_spec in schema.columns:
-            source_col_name = col_spec.name
-            final_col_name = col_spec.rename or source_col_name
+            source_col_name = col_spec.old_name
+            final_col_name = col_spec.name
 
             if source_col_name not in df.columns:
                 if col_spec.optional:

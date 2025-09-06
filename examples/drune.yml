@@ -1,69 +1,81 @@
-# 1. Project Name and Metadata
-project_name: "drune_example_analytics"
+# High-level information about the project.
+project_name: "drune_example"
 description: "Example project for processing customer and sales data."
 version: "1.0.0"
 
-# 2. Connection Profiles (Optional, but recommended)
-# Centralizes connection settings for different environments (e.g., dev, prod).
-# In production, passwords should be injected via environment variables.
+# The active profile to use. Can be overridden by a CLI flag or environment variable.
+# e.g., `drune run --profile prd` or `DRUNE_PROFILE=prd drune run`
+profile: 'dev'
 
-engine:
-  name: duckdb
-  options:
-    database: 'duckdb_test_v2.db'
-    
-profiles:
-  dev:
-    main_db:
-      type: postgres
-      host: localhost
-      port: 5432
-      user: dev_user
-      password: "dev_password" # For a real project, use: "${DB_PASSWORD}"
-      dbname: analytics_dev
+logging:
+  path: "../scratch/logs/"
+  level: "INFO"
 
-  prd:
-    main_db:
-      type: postgres
-      host: prod.db.example.com
-      port: 5432
-      user: prod_user
-      password: "${DB_PASSWORD}" # Injected from the environment
-      dbname: analytics
-
-# 3. Default Path Definitions
-# Defines the default directories for the project.
-paths:
-  pipelines: "pipelines/"
-  sources: "data/sources/"  # Directory for raw data
-  targets: "data/targets/"  # Directory for processed data
-  logs: "../scratch/logs/"
-
-# 4. Global Pipeline Defaults
-# These settings will be inherited by all 'model.yml' and 'steps.yml' files
-# unless they are overridden locally.
+# 5. Default Profile Output: Base settings for a profile's output.
+# This section defines the default configuration that will be inherited by the
+# active profile. The structure here directly mirrors the structure inside a
+# profile's 'outputs' block.
 defaults:
-  # Default processing engine for all pipelines
-  engine: duckdb
+  engine:
+    name: duckdb
+    options:
+      database: 'drune_default.db'
+  
+  # Default transformations applied based on data type.
+  types:
+    str:
+      transform: upper|trim
+    date:
+      format: "yyyy-MM-dd"
+  
+  vars:
+    test_name: "default"
+    test_name_fixed: 'fixed'
+  
+  paths:
+    pipelines: "pipelines/"
+    sources: "data/"
+    targets: "../scratch/targets/"
 
-  # Default transformations by data type (inherited by all models)
-  type_defaults:
-    string: [trim, upper]
-    integer: [] # No default transformations for integers
-
-  # Defaults for sources and targets (sinks)
-  source_defaults:
-    file: # Defaults for sources of type 'file'
+  # Default settings for data sources and targets (sinks).
+  # These can be overridden in a specific profile or pipeline.
+  sources:
+    file:
+      format: "csv"
       options:
         header: true
-        inferSchema: false # Safer not to infer schema by default
-  target_defaults:
-    file: # Defaults for targets of type 'file'
-      format: "parquet" # Using Parquet by default is a good practice
+        inferSchema: false # It's safer to define schemas explicitly.
+  
+  targets:
+    file:
+      format: "parquet"
       mode: "overwrite"
 
-# 5. Global Variables (Optional)
-# Variables that can be used anywhere in the project with the syntax {{ vars.min_date }}
-vars:
-  min_date: "2020-01-01"
-  regions: ["north", "south", "east", "west"]
+
+
+# 6. Execution Profiles: Environment-specific configurations.
+# A profile defines the target outputs and connections for a specific environment.
+profiles:
+  # The 'dev' profile for local development.
+  dev: 
+    engine:
+      name: duckdb
+      options:
+        database: './drune_dev.db' # Path relative to project root.
+    # In dev, we might want to output CSVs for easier inspection.
+    # This overrides the 'parquet' default.
+    targets:
+      file:
+        format: "csv"
+    
+    vars:
+      test_name: "dev"
+    
+
+  # The 'prd' profile for the production environment.
+  prd:
+    engine:
+      name: spark # Production might use a more scalable engine.
+      options: {}
+    # The 'prd' profile will inherit the default target format ('parquet')
+    # because it is not overridden here.s

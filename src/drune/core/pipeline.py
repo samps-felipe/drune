@@ -1,6 +1,6 @@
-import os
 from typing import Any, Dict, Optional
 import yaml
+from pathlib import Path
 import glob
 
 from drune.core.quality import DataQualityManager
@@ -28,33 +28,33 @@ class Pipeline:
         self.project = project_config
         self.engine = engine
         self.step_manager = StepManager(self.engine)
-        self.quality_manager = DataQualityManager(self.engine, project_dir, project_config.paths.logs)
+        self.quality_manager = DataQualityManager(self.engine, project_dir, project_config.logging.path)
 
         
     def load(self, pipeline_path: str):
         self.pipeline_path = pipeline_path
 
         self.config = self._load_pipeline(pipeline_path)
-        self.logger = get_logger(f"pipeline:{self.config.pipeline.name}")
+        self.logger = get_logger(f"pipeline:{self.config.pipeline_name}")
+
+        self._merge_defaults()
 
         self._sources = {}
         self._target = None
 
         self.step_manager.load(self.config.steps)
 
-        self.read_functions = {
-            'file': self._read_file,
-            'table': self._read_table,
-            'query': self._read_query
-        }        
+        self.logger.info(f"Pipeline '{self.config.pipeline_name}' loaded.")
 
         return self
+    
     
     def refresh(self):
         """Reloads the pipeline configuration from its source file."""
         self.logger.info(f"Refreshing pipeline configuration from '{self.pipeline_path}'")
         self.config = self._load_pipeline(self.pipeline_path)
-        self.logger.info("Pipeline configurations refreshed.")
+        self._merge_defaults()
+        self.logger.info(f"Pipeline '{self.config.pipeline_name}' configurations refreshed.")
 
     def reset(self):
         """Resets the pipeline's execution state."""
@@ -89,20 +89,21 @@ class Pipeline:
         """Reads data from the source defined in the pipeline configuration."""
         self.logger.info(f"Starting reading sources...")
 
+        src_paths = src_paths or {}
+
         for source in self.config.sources:
-            source = source.model_copy()  # Create a copy to avoid modifying the original source
-            if src_paths and source.name in src_paths:
-                if not os.path.isabs(src_paths[source.name]):
-                    source.path = os.path.join(source.path, src_paths[source.name])
-                else:
-                    source.path = src_paths[source.name]
-            
-            read_function = self.read_functions.get(source.type)
+            source_data = None
+            dynamic_path = src_paths.get(source.name)
 
-            if not read_function:
+            if source.type == 'file':
+                source_data = self._read_file(source, dynamic_path)
+            elif source.type == 'table':
+                source_data = self._read_table(source)
+            elif source.type == 'sql': # Matching 'sql' from the model
+                source_data = self._read_query(source)
+            else:
                 raise ConfigurationError(f"Source type '{source.type}' is not supported by the engine.")
-
-            self._sources[source.name] = read_function(source)
+            self._sources[source.name] = source_data
 
             # Apply schema
             if apply_schema:
@@ -115,8 +116,29 @@ class Pipeline:
         self._target = self._sources[self.config.sources[0].name]
 
     
-    def _read_file(self, source) -> Any:
+    def _read_file(self, source, dynamic_path: Optional[str]) -> Any:
         """Reads a file from the specified source configuration."""
+        source = source.model_copy() # Create a copy to avoid modifying the original
+
+        source_path = Path(source.path)
+
+        # Resolve relative paths using the project's default sources path
+        if not source_path.is_absolute():
+            base_sources_path = Path(self.project_dir) / self.project.defaults.paths.sources
+            source_path = base_sources_path / source_path
+
+        # If the path in YAML is a directory (no extension), a dynamic path must be provided
+        if not source_path.suffix: # It's a directory
+            if not dynamic_path:
+                raise ConfigurationError(f"Source '{source.name}' points to a directory ('{source_path}') but no specific file was provided at runtime.")
+            source.path = str(source_path / dynamic_path)
+        else: # It's a file
+            if dynamic_path:
+                # If a dynamic path is provided, it replaces the file name
+                source.path = str(source_path.with_name(dynamic_path))
+            else:
+                source.path = str(source_path)
+        
         return self.engine.read_file(source)
 
     
@@ -146,22 +168,71 @@ class Pipeline:
         self.engine.test(self.config)
         self.logger.info(f"Test mode for pipeline: {self.config.pipeline_name} finished.")
  
-            
     
     def _load_pipeline(self, path: str) -> PipelineModel:
         """Loads and merges all YAML files in a directory, then parses as PipelineModel."""
-        if self.project.paths.pipelines and not os.path.isabs(path):
-            pipeline_dir = os.path.dirname(self.project.paths.pipelines)
-            pipeline_dir = os.path.join(self.project_dir, pipeline_dir, path)
+        pipelines_path = Path(self.project.defaults.paths.pipelines)
+        pipeline_dir = Path(path)
+        if pipelines_path and not pipeline_dir.is_absolute():
+            pipeline_dir = Path(self.project_dir) / Path(pipelines_path) / path
         else:
-            pipeline_dir = path
+            pipeline_dir = Path(path)
         
         # Find all .yml and .yaml files in the directory
-        files = glob.glob(os.path.join(pipeline_dir, "*.yml")) + glob.glob(os.path.join(pipeline_dir, "*.yaml"))
+        files = list(pipeline_dir.glob("*.yml")) + list(pipeline_dir.glob("*.yaml"))
+
         merged_dict = {}
         for file_path in files:
             with open(file_path, 'r') as file:
                 yml_dict = yaml.safe_load(file) or {}
                 merged_dict.update(yml_dict)
- 
-        return PipelineModel(**merged_dict)
+        
+        pipeline_model = PipelineModel(**merged_dict)
+
+        return pipeline_model
+    
+    def _merge_defaults(self):
+        """
+        Merges project-level defaults into the pipeline configuration dynamically.
+        This function is now more robust and maintainable.
+        """
+        pipeline_config = self.config
+        project_defaults = self.project.defaults
+
+        # 1. Merge Type Defaults into Columns
+        if project_defaults.types:
+            # Collect all columns from sources and the target
+            all_columns = []
+            for source in pipeline_config.sources:
+                if source.schema_spec and source.schema_spec.columns:
+                    all_columns.extend(source.schema_spec.columns)
+            if pipeline_config.target and pipeline_config.target.schema_spec and pipeline_config.target.schema_spec.columns:
+                all_columns.extend(pipeline_config.target.schema_spec.columns)
+
+            # Apply the type defaults to each column
+            for column in all_columns:
+                if column.type in project_defaults.types:
+                    default_config = project_defaults.types[column.type]
+                    for field, value in default_config.model_dump(exclude_unset=True).items():
+                        if not getattr(column, field, None) and value is not None:
+                            setattr(column, field, value)
+
+        # 2. Merge Source Defaults
+        if project_defaults.sources:
+            for source in pipeline_config.sources:
+                if source.type in project_defaults.sources:
+                    default_config = project_defaults.sources[source.type]
+                    for field, value in default_config.model_dump(exclude_unset=True).items():
+                        if not getattr(source, field, None) and value is not None:
+                            setattr(source, field, value)
+        
+        # 3. Merge Target Defaults can be added here following the same pattern
+        if project_defaults.targets:
+            target = pipeline_config.target
+            if target.type in project_defaults.targets:
+                default_config = project_defaults.targets[target.type]
+                for field, value in default_config.model_dump(exclude_unset=True).items():
+                    if not getattr(target, field, None) and value is not None:
+                        setattr(target, field, value)
+                        
+        return pipeline_config

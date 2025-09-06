@@ -1,26 +1,27 @@
-pipeline:
-  name: customer_pipeline
+pipeline_name: customer_pipeline
+description: Custom description for the pipeline
 
-  defaults:
-    patterns:
-      rename: snake_case
-      email: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-  types: 
-      - type: str
-        transform: trim|upper
-      - type: int
-        try_cast: true
-      - type: float
-        format: "{:.2f}"
-        try_cast: true
-      - type: date
-        format: "yyyy-MM-dd"
+defaults:
+  # patterns:
+  #   rename: snake_case
+  #   email: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+
+  types:
+    # str:
+    #   transform: trim|upper
+    int:
+      try_cast: true
+    float:
+      format: "{:.2f}"
+      try_cast: true
+    date:
+      format: "yyyy-MM-dd"
 
 sources:
   - name: customer_file
     type: file
     format: csv
-    path: "C:/Users/felipe.sampaio_visag/Documents/repos/drune/examples/data/"
+    # path: ""
     options:
       header: 0
       delimiter: ","
@@ -28,8 +29,8 @@ sources:
     
     schema:
       columns:
-        - name: customer_id
-          rename: cd_customer
+        - name: cd_customer
+          from: customer_id
           description: Identifies the customer
           type: int
           constraints: 
@@ -37,24 +38,22 @@ sources:
               on_fail: "warn"
             - rule: "unique"
               on_fail: "drop"
-        - name: first_name
-          rename: nm_first_name
+        - name: nm_first_name
+          from: first_name
           type: str
-          transform: trim|upper
-        - name: last_name
-          rename: nm_last_name
+        - name: nm_last_name
+          from: last_name
           type: str
-          transform: trim|upper
-        - name: email
-          rename: ds_email
+        - name: ds_email
+          from: email
           type: str
           transform: trim|lower
           optional: true
           constraints:
-            - rule: pattern:'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'
-              on_fail: set_null
-        - name: document
-          rename: nu_document
+            - rule: pattern:^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+              on_fail: warn
+        - name: nu_document
+          from: document
           type: str
         # - name: ds_login
         #   type: str

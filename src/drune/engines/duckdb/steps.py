@@ -16,7 +16,7 @@ class TransformStep(BaseStep):
 
         select_expressions = []
         for spec in columns:
-            final_name = spec.rename or spec.name
+            final_name = spec.name
             if spec.transform:
                 select_expressions.append(f"{spec.transform} AS \"{final_name}\"")
             else:

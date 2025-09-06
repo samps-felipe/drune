@@ -66,13 +66,19 @@ class DuckDBEngine(BaseEngine):
 
         self.logger.info("Applying schema to the DataFrame.")
         
-        temp_view_name = "temp_view_for_schema"
-        relation.create_view(temp_view_name, replace=True)
+        # Get the list of columns from the source relation
+        source_columns = [col.lower() for col in relation.columns]
 
         select_clauses = []
         for col_spec in schema.columns:
-            source_col_name = col_spec.name
-            final_col_name = col_spec.rename or source_col_name
+            source_col_name = col_spec.old_name.lower()
+            final_col_name = col_spec.name
+
+            if source_col_name not in source_columns:
+                if col_spec.optional:
+                    continue  # Silently skip optional columns that are not found
+                # If not optional, raise an error.
+                raise ValueError(f"Column '{col_spec.old_name}' not found in source.") 
 
             # Type casting
             cast_expression = self._get_cast_expression(source_col_name, col_spec)
@@ -82,13 +88,13 @@ class DuckDBEngine(BaseEngine):
 
             transformed_expression = self._apply_transformations(cast_expression, transforms)
 
-            select_clauses.append(f"{transformed_expression} AS {final_col_name}")
+            select_clauses.append(f"{transformed_expression} AS \"{final_col_name}\"")
 
-        select_statement = ", ".join(select_clauses)
-        query = f"SELECT {select_statement} FROM {temp_view_name}"
-        
-        self.logger.info(f"Applying schema with query: {query}")
-        return self.con.sql(query)
+        if not select_clauses:
+            self.logger.warning("No columns were selected after applying the schema. Returning original relation.")
+            return relation
+
+        return relation.select(", ".join(select_clauses))
 
     def _get_cast_expression(self, column_name: str, col_spec: ColumnSpec) -> str:
         target_type = col_spec.type.lower()
