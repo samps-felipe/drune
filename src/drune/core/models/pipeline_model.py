@@ -29,17 +29,17 @@ class ColumnSpec(BaseModel):
     description: Optional[str] = Field(None, description="Description of the column.")
     type: str = Field(..., description="Data type of the column.")
     optional: Optional[bool] = Field(False, description="If True, the source column can be missing.")
-    transform: Optional[str] = Field(None, description="List of transformations to apply to the column in format 'func:arg1,arg2,...'.")
+    expression: Optional[str] = Field(None, description="Expression apply to the column in format 'func(arg1,{col},...)'.")
     constraints: List[ConstraintSpec] = Field([], description="List of constraints to apply to the column.")
     format: Optional[str] = None
     try_cast: bool = False
 
-    @model_validator(mode="after")
-    def set_old_name_from_name(self):
-        """If 'name' is not provided, use 'old_name' as 'name'."""
-        if self.old_name is None:
-            self.old_name = self.name
-        return self
+    # @model_validator(mode="after")
+    # def set_old_name_from_name(self):
+    #     """If 'name' is not provided, use 'old_name' as 'name'."""
+    #     if self.old_name is None:
+    #         self.old_name = self.name
+    #     return self
         
 
     @model_validator(mode="after")

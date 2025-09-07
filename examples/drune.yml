@@ -24,7 +24,9 @@ defaults:
   # Default transformations applied based on data type.
   types:
     str:
-      transform: upper|trim
+      expression: upper(trim({col}))
+    int:
+      try_cast: true
     date:
       format: "yyyy-MM-dd"
   

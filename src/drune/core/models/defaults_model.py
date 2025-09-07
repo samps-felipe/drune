@@ -5,7 +5,7 @@ class TypeDefault(BaseModel):
     """Default type transformation settings."""
     format: Optional[str] = None
     try_cast: bool = False
-    transform: Optional[str] = None
+    expression: Optional[str] = Field(None, description="Expression apply to the column in format 'func(arg1,{col},...)'.")
     options: Dict[str, Any] = {}
     
 

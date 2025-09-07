@@ -1,4 +1,3 @@
-from ast import Dict
 import os
 from typing import Any, Type, List
 import duckdb
@@ -6,7 +5,6 @@ from drune.core.engine import BaseEngine
 from drune.core.models import ColumnSpec
 from drune.utils.logger import get_logger
 from drune.utils.exceptions import ConfigurationError
-from drune.utils.parsers import parse_function_string
 
 from drune.core.engine import EngineManager
 
@@ -70,25 +68,42 @@ class DuckDBEngine(BaseEngine):
         source_columns = [col.lower() for col in relation.columns]
 
         select_clauses = []
+        
         for col_spec in schema.columns:
-            source_col_name = col_spec.old_name.lower()
             final_col_name = col_spec.name
+            expression = ""
 
-            if source_col_name not in source_columns:
-                if col_spec.optional:
-                    continue  # Silently skip optional columns that are not found
-                # If not optional, raise an error.
-                raise ValueError(f"Column '{col_spec.old_name}' not found in source.") 
+            # Case 1: Column is derived (no 'from' field)
+            if not col_spec.old_name:
+                if not col_spec.expression:
+                    raise ConfigurationError(f"Derived column '{final_col_name}' must have an 'expression'.")
+                expression = col_spec.expression
+            
+            # Case 2: Column is mapped from a source column
+            else:
+                source_col_name = col_spec.old_name.lower()
+                if source_col_name not in source_columns:
+                    if col_spec.optional:
+                        self.logger.info(f"Optional column '{col_spec.old_name}' not found in source. Skipping.")
+                        continue
+                    raise ValueError(f"Column '{col_spec.old_name}' not found in source.")
 
-            # Type casting
-            cast_expression = self._get_cast_expression(source_col_name, col_spec)
+                # Start with the source column name
+                base_expression = f'"{source_col_name}"'
 
-            # Transformations
-            transforms = parse_function_string(col_spec.transform) if col_spec.transform else []
+                # Apply casting if specified
+                cast_expression = self._get_cast_expression(base_expression, col_spec)
 
-            transformed_expression = self._apply_transformations(cast_expression, transforms)
+                # Use the column's expression if provided, otherwise use the casted expression
+                if col_spec.expression:
+                    # Replace the {col} placeholder with the casted expression
+                    expression = col_spec.expression.format(col=cast_expression)
+                else:
+                    expression = cast_expression
 
-            select_clauses.append(f"{transformed_expression} AS \"{final_col_name}\"")
+            # Add the final expression to the select clauses
+            if expression:
+                select_clauses.append(f'{expression} AS "{final_col_name}"')
 
         if not select_clauses:
             self.logger.warning("No columns were selected after applying the schema. Returning original relation.")
@@ -96,7 +111,7 @@ class DuckDBEngine(BaseEngine):
 
         return relation.select(", ".join(select_clauses))
 
-    def _get_cast_expression(self, column_name: str, col_spec: ColumnSpec) -> str:
+    def _get_cast_expression(self, column_expression: str, col_spec: ColumnSpec) -> str:
         target_type = col_spec.type.lower()
         type_map = {
             'str': 'VARCHAR',
@@ -111,29 +126,13 @@ class DuckDBEngine(BaseEngine):
         duckdb_type = type_map.get(target_type)
 
         if not duckdb_type:
-            self.logger.warning(f"Type '{col_spec.type}' not supported for casting column '{column_name}'. Skipping.")
-            return column_name
-
-        if col_spec.try_cast:
-            return f"TRY_CAST(\"{column_name}\" AS {duckdb_type})"
-        else:
-            return f"CAST(\"{column_name}\" AS {duckdb_type})"
-
-    def _apply_transformations(self, column_expression: str, transfoms: List[str]) -> str:
-        if not transfoms:
+            self.logger.warning(f"Type '{col_spec.type}' not supported for casting. Skipping cast for expression.")
             return column_expression
 
-        expression = column_expression
-        for transform in transfoms:
-            if transform['function'] == 'trim':
-                expression = f"trim({expression})"
-            elif transform['function'] == 'upper':
-                expression = f"upper({expression})"
-            elif transform['function'] == 'lower':
-                expression = f"lower({expression})"
-            else:
-                self.logger.warning(f"Transformation '{transform}' not supported. Skipping.")
-        return expression
+        if col_spec.try_cast:
+            return f"TRY_CAST({column_expression} AS {duckdb_type})"
+        else:
+            return f"CAST({column_expression} AS {duckdb_type})"
 
     def write_list(self, fails_list: List[Any], path: str):
         if not fails_list:

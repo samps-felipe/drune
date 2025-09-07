@@ -104,5 +104,6 @@ class PatternConstraint(DuckDBConstraintRule):
         if not pattern:
             raise ValueError("Pattern not provided for pattern constraint.")
         
-        condition = f"regexp_full_match(\"{self.column}\", '{pattern}')"
+        condition = f"regexp_matches(\"{self.column}\", '{pattern}')"
+        self.logger.info(f"Applying {condition} to column {self.column}")
         return self._apply_constraint(relation, condition)

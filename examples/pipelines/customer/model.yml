@@ -2,13 +2,9 @@ pipeline_name: customer_pipeline
 description: Custom description for the pipeline
 
 defaults:
-  # patterns:
-  #   rename: snake_case
-  #   email: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-
   types:
-    # str:
-    #   transform: trim|upper
+    str:
+      expression: trim(upper({col}))
     int:
       try_cast: true
     float:
@@ -38,26 +34,31 @@ sources:
               on_fail: "warn"
             - rule: "unique"
               on_fail: "drop"
+        
         - name: nm_first_name
           from: first_name
           type: str
+        
         - name: nm_last_name
           from: last_name
           type: str
+        
         - name: ds_email
           from: email
           type: str
-          transform: trim|lower
+          expression: lower(trim({col}))
           optional: true
           constraints:
-            - rule: pattern:^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+            - rule: pattern:"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+[.][a-zA-Z]{2,}$"
               on_fail: warn
+        
         - name: nu_document
-          from: document
+          from: document # This column will be excluded in the target
           type: str
-        # - name: ds_login
-        #   type: str
-        #   transform: regex:email,^[^@]+
+        
+        - name: ds_login
+          type: str
+          expression: "string_split(trim(ds_email),'@')[1]"
 
 target:
   name: dm_customer
